@@ -1,0 +1,16 @@
+{# Generic dynamic section — renders Sheets data as a table #}
+<section id="{{ section.id|default('data') }}" class="py-20 lg:py-24 bg-white"
+         data-sheet-section="{{ section.sheet_key|default('data') }}" data-sheet-kind="generic">
+  <div class="max-w-content mx-auto px-6 lg:px-8">
+    <div class="text-center max-w-2xl mx-auto reveal mb-10">
+      {% if section.eyebrow %}<p class="text-sm font-semibold uppercase tracking-wide text-brand-700">{{ section.eyebrow }}</p>{% endif %}
+      <h2 class="mt-2 font-display text-3xl md:text-4xl font-bold tracking-tight">{{ section.headline|default('Dati') }}</h2>
+      {% if section.subheadline %}<p class="mt-4 text-lg text-slate-600">{{ section.subheadline }}</p>{% endif %}
+    </div>
+    <div class="reveal bg-surface rounded-2xl p-6 ring-1 ring-slate-200/70 overflow-x-auto">
+      <div data-sheet-mount>
+        <p class="text-slate-500 text-sm">Caricamento…</p>
+      </div>
+    </div>
+  </div>
+</section>

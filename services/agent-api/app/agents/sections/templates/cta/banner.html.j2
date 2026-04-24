@@ -1,0 +1,20 @@
+{# Full-width CTA banner with strong background #}
+<section id="{{ section.id|default('cta') }}" class="py-20 lg:py-24">
+  <div class="max-w-content mx-auto px-6 lg:px-8">
+    <div class="reveal rounded-3xl bg-gradient-to-br from-brand-700 via-brand-600 to-brand-500 px-8 py-14 lg:px-16 lg:py-20 text-center shadow-xl overflow-hidden relative">
+      <div class="absolute inset-0 opacity-10" aria-hidden="true">
+        <div class="absolute top-0 left-0 w-96 h-96 bg-white rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2"></div>
+        <div class="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl translate-x-1/2 translate-y-1/2"></div>
+      </div>
+      <div class="relative">
+        {% if section.eyebrow %}<p class="text-xs uppercase tracking-wide font-semibold text-white/80 mb-3">{{ section.eyebrow }}</p>{% endif %}
+        <h2 class="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-white max-w-3xl mx-auto leading-tight">{{ section.headline }}</h2>
+        {% if section.subheadline %}<p class="mt-4 text-lg text-white/85 max-w-2xl mx-auto">{{ section.subheadline }}</p>{% endif %}
+        <div class="mt-8 flex flex-wrap gap-3 justify-center">
+          {% if section.primary_cta %}<a href="{{ section.primary_cta.href|default('#contact') }}" class="inline-flex items-center rounded-xl bg-white text-ink hover:bg-brand-50 font-semibold px-6 py-3 shadow-sm transition">{{ section.primary_cta.label }}</a>{% endif %}
+          {% if section.secondary_cta %}<a href="{{ section.secondary_cta.href|default('#services') }}" class="inline-flex items-center rounded-xl bg-white/10 hover:bg-white/20 text-white ring-1 ring-white/40 font-semibold px-6 py-3 transition">{{ section.secondary_cta.label }}</a>{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

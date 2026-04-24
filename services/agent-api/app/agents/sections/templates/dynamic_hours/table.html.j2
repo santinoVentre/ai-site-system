@@ -1,0 +1,16 @@
+{# Dynamic hours (from Sheets) #}
+<section id="{{ section.id|default('hours') }}" class="py-20 lg:py-24 bg-white"
+         data-sheet-section="{{ section.sheet_key|default('hours') }}" data-sheet-kind="hours">
+  <div class="max-w-3xl mx-auto px-6 lg:px-8">
+    <div class="text-center reveal mb-10">
+      {% if section.eyebrow %}<p class="text-sm font-semibold uppercase tracking-wide text-brand-700">{{ section.eyebrow }}</p>{% endif %}
+      <h2 class="mt-2 font-display text-3xl md:text-4xl font-bold tracking-tight">{{ section.headline|default('Orari di apertura') }}</h2>
+      {% if section.subheadline %}<p class="mt-4 text-lg text-slate-600">{{ section.subheadline }}</p>{% endif %}
+    </div>
+    <div class="reveal bg-surface rounded-2xl p-6 lg:p-8 ring-1 ring-slate-200/70">
+      <div data-sheet-mount>
+        <p class="text-slate-500 text-sm">Caricamento orari…</p>
+      </div>
+    </div>
+  </div>
+</section>

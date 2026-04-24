@@ -1,0 +1,41 @@
+{# Multi-column footer with brand, nav, contact, newsletter-style box #}
+<footer class="bg-ink text-white/80">
+  <div class="max-w-content mx-auto px-6 lg:px-8 py-16">
+    <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-10">
+      <div class="lg:col-span-1">
+        <a href="{{ brand.home_href|default('#') }}" class="flex items-center gap-2 font-display font-bold text-lg text-white">
+          {% if brand.logo_url %}<img src="{{ brand.logo_url }}" alt="{{ brand.name }}" class="h-8 w-auto" />{% endif %}
+          <span>{{ brand.name }}</span>
+        </a>
+        {% if section.tagline %}<p class="mt-4 text-sm text-white/70">{{ section.tagline }}</p>{% endif %}
+      </div>
+
+      {% for col in section.columns %}
+      <div>
+        <h3 class="text-sm font-semibold text-white mb-4">{{ col.title }}</h3>
+        <ul class="space-y-2 text-sm">
+          {% for l in col.links %}<li><a href="{{ l.href }}" class="hover:text-white transition">{{ l.label }}</a></li>{% endfor %}
+        </ul>
+      </div>
+      {% endfor %}
+
+      <div>
+        <h3 class="text-sm font-semibold text-white mb-4">Contatti</h3>
+        <ul class="space-y-2 text-sm">
+          {% if contact.email %}<li><a href="mailto:{{ contact.email }}" class="hover:text-white">{{ contact.email }}</a></li>{% endif %}
+          {% if contact.phone %}<li><a href="tel:{{ contact.phone|replace(' ','')|replace('+','') }}" class="hover:text-white">{{ contact.phone }}</a></li>{% endif %}
+          {% if contact.address %}<li>{{ contact.address }}</li>{% endif %}
+        </ul>
+      </div>
+    </div>
+
+    <div class="mt-12 pt-6 border-t border-white/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-sm text-white/60">
+      <p>&copy; {{ current_year|default(2026) }} {{ brand.name }}. Tutti i diritti riservati.</p>
+      {% if section.legal_links %}
+      <ul class="flex flex-wrap gap-4">
+        {% for l in section.legal_links %}<li><a href="{{ l.href }}" class="hover:text-white">{{ l.label }}</a></li>{% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+  </div>
+</footer>

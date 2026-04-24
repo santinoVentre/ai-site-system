@@ -1,0 +1,68 @@
+{# Contact section with form and info side by side (form is decorative / uses mailto) #}
+<section id="{{ section.id|default('contact') }}" class="py-20 lg:py-24 bg-surface">
+  <div class="max-w-content mx-auto px-6 lg:px-8">
+    <div class="grid lg:grid-cols-2 gap-12 items-start">
+      <div class="reveal">
+        {% if section.eyebrow %}<p class="text-sm font-semibold uppercase tracking-wide text-brand-700">{{ section.eyebrow }}</p>{% endif %}
+        <h2 class="mt-2 font-display text-3xl md:text-4xl font-bold tracking-tight">{{ section.headline }}</h2>
+        {% if section.subheadline %}<p class="mt-4 text-lg text-slate-600">{{ section.subheadline }}</p>{% endif %}
+
+        <dl class="mt-8 space-y-5 text-slate-700">
+          {% if contact.email %}
+          <div class="flex gap-4">
+            <div class="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center shrink-0"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l9 6 9-6M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg></div>
+            <div><dt class="text-sm font-semibold text-ink">Email</dt><dd><a href="mailto:{{ contact.email }}" class="hover:text-brand-700">{{ contact.email }}</a></dd></div>
+          </div>
+          {% endif %}
+          {% if contact.phone %}
+          <div class="flex gap-4">
+            <div class="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center shrink-0"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h2l2 5-3 2a12 12 0 006 6l2-3 5 2v2a2 2 0 01-2 2A17 17 0 013 5z"/></svg></div>
+            <div><dt class="text-sm font-semibold text-ink">Telefono</dt><dd><a href="tel:{{ contact.phone|replace(' ','')|replace('+','') }}" class="hover:text-brand-700">{{ contact.phone }}</a></dd></div>
+          </div>
+          {% endif %}
+          {% if contact.address %}
+          <div class="flex gap-4">
+            <div class="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center shrink-0"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 11c1.657 0 3-1.343 3-3S13.657 5 12 5 9 6.343 9 8s1.343 3 3 3z"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 21s-7-6.5-7-12a7 7 0 1114 0c0 5.5-7 12-7 12z"/></svg></div>
+            <div><dt class="text-sm font-semibold text-ink">Indirizzo</dt><dd>{{ contact.address }}</dd></div>
+          </div>
+          {% endif %}
+          {% if contact.hours %}
+          <div class="flex gap-4">
+            <div class="w-10 h-10 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center shrink-0"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
+            <div><dt class="text-sm font-semibold text-ink">Orari</dt><dd>{{ contact.hours }}</dd></div>
+          </div>
+          {% endif %}
+        </dl>
+      </div>
+
+      <form class="reveal bg-white rounded-2xl ring-1 ring-slate-200 p-6 lg:p-8 shadow-sm space-y-4"
+            action="{{ section.form_action|default('mailto:' ~ (contact.email|default(''))) }}" method="post"
+            x-data="{ sending: false, sent: false }"
+            @submit="sending = true">
+        <div class="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label for="c-name" class="block text-sm font-medium text-ink mb-1">Nome</label>
+            <input id="c-name" name="name" required class="w-full rounded-lg ring-1 ring-slate-200 focus:ring-brand-500 px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label for="c-email" class="block text-sm font-medium text-ink mb-1">Email</label>
+            <input id="c-email" name="email" type="email" required class="w-full rounded-lg ring-1 ring-slate-200 focus:ring-brand-500 px-3 py-2 text-sm" />
+          </div>
+        </div>
+        <div>
+          <label for="c-subject" class="block text-sm font-medium text-ink mb-1">Oggetto</label>
+          <input id="c-subject" name="subject" class="w-full rounded-lg ring-1 ring-slate-200 focus:ring-brand-500 px-3 py-2 text-sm" />
+        </div>
+        <div>
+          <label for="c-message" class="block text-sm font-medium text-ink mb-1">Messaggio</label>
+          <textarea id="c-message" name="message" rows="5" required class="w-full rounded-lg ring-1 ring-slate-200 focus:ring-brand-500 px-3 py-2 text-sm"></textarea>
+        </div>
+        <button type="submit" class="w-full inline-flex items-center justify-center rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold px-5 py-3 transition disabled:opacity-60" :disabled="sending">
+          <span x-show="!sending">{{ section.submit_label|default('Invia messaggio') }}</span>
+          <span x-show="sending" x-cloak>Invio in corso…</span>
+        </button>
+        <p class="text-xs text-slate-500">Inviando accetti la nostra informativa privacy.</p>
+      </form>
+    </div>
+  </div>
+</section>

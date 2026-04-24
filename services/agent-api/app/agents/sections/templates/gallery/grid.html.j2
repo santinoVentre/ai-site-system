@@ -1,0 +1,32 @@
+{# Responsive image gallery with Alpine-powered lightbox #}
+<section id="{{ section.id|default('gallery') }}" class="py-20 lg:py-24 bg-white"
+         x-data="{ open: false, current: 0, images: {{ (section.items | map(attribute='image_url') | list) | tojson }} }">
+  <div class="max-w-content mx-auto px-6 lg:px-8">
+    <div class="text-center max-w-2xl mx-auto reveal mb-12">
+      {% if section.eyebrow %}<p class="text-sm font-semibold uppercase tracking-wide text-brand-700">{{ section.eyebrow }}</p>{% endif %}
+      <h2 class="mt-2 font-display text-3xl md:text-4xl font-bold tracking-tight">{{ section.headline }}</h2>
+      {% if section.subheadline %}<p class="mt-4 text-lg text-slate-600">{{ section.subheadline }}</p>{% endif %}
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4 reveal">
+      {% for item in section.items %}
+      <button type="button" @click="open = true; current = {{ loop.index0 }}"
+              class="group relative aspect-square overflow-hidden rounded-2xl bg-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500">
+        <img src="{{ item.image_url }}" alt="{{ item.alt|default(item.title|default('Immagine ' ~ loop.index)) }}"
+             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+        {% if item.title %}<span class="absolute bottom-0 inset-x-0 p-3 text-xs font-medium text-white bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition">{{ item.title }}</span>{% endif %}
+      </button>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div x-show="open" x-cloak x-transition.opacity class="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4"
+       @keydown.escape.window="open = false"
+       @keydown.arrow-left.window="current = (current - 1 + images.length) % images.length"
+       @keydown.arrow-right.window="current = (current + 1) % images.length">
+    <button @click="open = false" class="absolute top-4 right-4 text-white/90 hover:text-white text-3xl" aria-label="Chiudi">&times;</button>
+    <button @click.stop="current = (current - 1 + images.length) % images.length" class="absolute left-4 md:left-8 text-white/90 hover:text-white text-4xl" aria-label="Precedente">&lsaquo;</button>
+    <img :src="images[current]" alt="" class="max-h-[90vh] max-w-[90vw] rounded-xl shadow-2xl object-contain" />
+    <button @click.stop="current = (current + 1) % images.length" class="absolute right-4 md:right-8 text-white/90 hover:text-white text-4xl" aria-label="Successivo">&rsaquo;</button>
+  </div>
+</section>

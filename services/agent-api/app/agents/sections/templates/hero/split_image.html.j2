@@ -1,0 +1,29 @@
+{# Hero with text left, image right #}
+<section id="{{ section.id|default('home') }}" class="relative overflow-hidden">
+  <div class="max-w-content mx-auto px-6 lg:px-8 py-20 lg:py-28">
+    <div class="grid lg:grid-cols-2 gap-12 items-center">
+      <div class="reveal">
+        {% if section.eyebrow %}<p class="inline-flex items-center rounded-full bg-brand-50 text-brand-700 text-xs font-semibold tracking-wide uppercase px-3 py-1 mb-5">{{ section.eyebrow }}</p>{% endif %}
+        <h1 class="font-display font-extrabold text-4xl md:text-5xl lg:text-6xl leading-tight tracking-tight text-ink">
+          {{ section.headline }}
+        </h1>
+        {% if section.subheadline %}<p class="mt-6 text-lg md:text-xl text-slate-600 max-w-xl">{{ section.subheadline }}</p>{% endif %}
+        <div class="mt-8 flex flex-wrap gap-3">
+          {% if section.primary_cta %}<a href="{{ section.primary_cta.href|default('#contact') }}" class="inline-flex items-center rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold px-6 py-3 shadow-sm transition">{{ section.primary_cta.label }}</a>{% endif %}
+          {% if section.secondary_cta %}<a href="{{ section.secondary_cta.href|default('#services') }}" class="inline-flex items-center rounded-xl bg-white ring-1 ring-slate-200 hover:ring-slate-300 text-ink font-semibold px-6 py-3 transition">{{ section.secondary_cta.label }}</a>{% endif %}
+        </div>
+      </div>
+
+      <div class="reveal relative">
+        <div class="aspect-[4/5] lg:aspect-[5/6] rounded-3xl overflow-hidden bg-slate-100 shadow-lg">
+          {% if section.image_url %}
+            <img src="{{ section.image_url }}" alt="{{ section.image_alt|default(section.headline) }}" class="w-full h-full object-cover" loading="eager" fetchpriority="high" />
+          {% else %}
+            <div class="w-full h-full bg-gradient-to-br from-brand-100 to-brand-300"></div>
+          {% endif %}
+        </div>
+        <div class="absolute -bottom-6 -left-6 hidden md:block w-28 h-28 rounded-2xl bg-brand-500 mix-blend-multiply opacity-90"></div>
+      </div>
+    </div>
+  </div>
+</section>

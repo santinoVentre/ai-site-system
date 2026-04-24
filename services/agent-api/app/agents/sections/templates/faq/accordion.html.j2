@@ -1,0 +1,22 @@
+{# FAQ with native <details> elements — no JS required, accessible #}
+<section id="{{ section.id|default('faq') }}" class="py-20 lg:py-24 bg-white">
+  <div class="max-w-3xl mx-auto px-6 lg:px-8">
+    <div class="text-center reveal">
+      {% if section.eyebrow %}<p class="text-sm font-semibold uppercase tracking-wide text-brand-700">{{ section.eyebrow }}</p>{% endif %}
+      <h2 class="mt-2 font-display text-3xl md:text-4xl font-bold tracking-tight">{{ section.headline }}</h2>
+      {% if section.subheadline %}<p class="mt-4 text-lg text-slate-600">{{ section.subheadline }}</p>{% endif %}
+    </div>
+
+    <div class="mt-12 divide-y divide-slate-200 reveal">
+      {% for q in section.items %}
+      <details class="group py-5">
+        <summary class="flex items-center justify-between gap-4 cursor-pointer list-none font-medium text-ink">
+          <span>{{ q.question }}</span>
+          <svg class="w-5 h-5 text-slate-400 transition group-open:rotate-45 shrink-0" viewBox="0 0 20 20" fill="currentColor"><path d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"/></svg>
+        </summary>
+        <div class="mt-3 text-slate-600 leading-relaxed">{{ q.answer }}</div>
+      </details>
+      {% endfor %}
+    </div>
+  </div>
+</section>

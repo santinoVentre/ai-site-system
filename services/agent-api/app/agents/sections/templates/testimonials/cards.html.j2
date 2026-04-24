@@ -1,0 +1,28 @@
+{# Testimonial cards in a responsive grid #}
+<section id="{{ section.id|default('testimonials') }}" class="py-20 lg:py-24 bg-surface">
+  <div class="max-w-content mx-auto px-6 lg:px-8">
+    <div class="text-center max-w-2xl mx-auto reveal">
+      {% if section.eyebrow %}<p class="text-sm font-semibold uppercase tracking-wide text-brand-700">{{ section.eyebrow }}</p>{% endif %}
+      <h2 class="mt-2 font-display text-3xl md:text-4xl font-bold tracking-tight">{{ section.headline }}</h2>
+      {% if section.subheadline %}<p class="mt-4 text-lg text-slate-600">{{ section.subheadline }}</p>{% endif %}
+    </div>
+
+    <div class="mt-14 grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {% for t in section.items %}
+      <figure class="reveal rounded-2xl bg-white ring-1 ring-slate-200/80 p-7 shadow-sm">
+        <div class="flex items-center gap-1 text-amber-400 mb-4" aria-label="{{ t.rating|default(5) }} su 5">
+          {% for _ in range(t.rating|default(5)) %}<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.966a1 1 0 00.95.69h4.17c.969 0 1.371 1.24.588 1.81l-3.37 2.448a1 1 0 00-.363 1.118l1.286 3.966c.3.922-.755 1.688-1.54 1.118l-3.37-2.448a1 1 0 00-1.176 0l-3.37 2.448c-.784.57-1.838-.196-1.54-1.118l1.285-3.966a1 1 0 00-.362-1.118L2.075 9.393c-.783-.57-.38-1.81.588-1.81h4.17a1 1 0 00.95-.69l1.286-3.966z"/></svg>{% endfor %}
+        </div>
+        <blockquote class="text-slate-700 leading-relaxed">&ldquo;{{ t.quote }}&rdquo;</blockquote>
+        <figcaption class="mt-5 flex items-center gap-3">
+          {% if t.avatar_url %}<img src="{{ t.avatar_url }}" alt="{{ t.author }}" class="w-10 h-10 rounded-full object-cover" loading="lazy" />{% else %}<div class="w-10 h-10 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-semibold">{{ t.author[:1]|upper }}</div>{% endif %}
+          <div>
+            <div class="font-semibold text-ink">{{ t.author }}</div>
+            {% if t.role %}<div class="text-sm text-slate-500">{{ t.role }}</div>{% endif %}
+          </div>
+        </figcaption>
+      </figure>
+      {% endfor %}
+    </div>
+  </div>
+</section>

@@ -1,0 +1,15 @@
+{# Minimal centered hero (no image) — ideal for SaaS/services #}
+<section id="{{ section.id|default('home') }}" class="relative">
+  <div class="absolute inset-0 -z-10 bg-gradient-to-b from-brand-50 to-white"></div>
+  <div class="max-w-content mx-auto px-6 lg:px-8 py-24 lg:py-32 text-center reveal">
+    {% if section.eyebrow %}<p class="inline-flex items-center rounded-full bg-brand-50 ring-1 ring-brand-200 text-brand-700 text-xs font-semibold tracking-wide uppercase px-3 py-1 mb-6">{{ section.eyebrow }}</p>{% endif %}
+    <h1 class="font-display font-extrabold text-4xl md:text-6xl lg:text-7xl tracking-tight leading-tight max-w-4xl mx-auto text-ink">
+      {{ section.headline }}
+    </h1>
+    {% if section.subheadline %}<p class="mt-6 text-lg md:text-xl text-slate-600 max-w-2xl mx-auto">{{ section.subheadline }}</p>{% endif %}
+    <div class="mt-10 flex flex-wrap gap-3 justify-center">
+      {% if section.primary_cta %}<a href="{{ section.primary_cta.href|default('#contact') }}" class="inline-flex items-center rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold px-6 py-3 shadow-sm transition">{{ section.primary_cta.label }}</a>{% endif %}
+      {% if section.secondary_cta %}<a href="{{ section.secondary_cta.href|default('#services') }}" class="inline-flex items-center rounded-xl bg-white ring-1 ring-slate-200 hover:ring-slate-300 text-ink font-semibold px-6 py-3 transition">{{ section.secondary_cta.label }}</a>{% endif %}
+    </div>
+  </div>
+</section>

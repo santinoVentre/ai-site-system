@@ -1,0 +1,37 @@
+# Environment
+.env
+.env.local
+
+# Data directories
+data/
+artifacts/
+generated-sites/
+backups/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# SSL certificates
+nginx/ssl/*.pem
+nginx/ssl/*.key
+
+# Google credentials - mai committare
+secrets/
+
+# Docker volumes
+pgdata/
+redisdata/
+n8ndata/

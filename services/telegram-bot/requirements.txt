@@ -1,0 +1,7 @@
+fastapi==0.115.*
+uvicorn[standard]==0.34.*
+python-telegram-bot[webhooks]==21.*
+httpx==0.28.*
+pydantic-settings==2.7.*
+redis[hiredis]==5.2.*
+loguru==0.7.*

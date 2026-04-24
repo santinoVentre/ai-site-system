@@ -1,0 +1,15 @@
+{# Two CTA cards side by side #}
+<section id="{{ section.id|default('cta') }}" class="py-20 lg:py-24 bg-white">
+  <div class="max-w-content mx-auto px-6 lg:px-8">
+    <div class="grid md:grid-cols-2 gap-6 reveal">
+      {% for card in section.items %}
+      <article class="rounded-3xl p-10 lg:p-12 {% if loop.first %}bg-ink text-white{% else %}bg-brand-50 text-ink{% endif %}">
+        {% if card.eyebrow %}<p class="text-xs uppercase tracking-wide font-semibold {% if loop.first %}text-white/70{% else %}text-brand-700{% endif %} mb-3">{{ card.eyebrow }}</p>{% endif %}
+        <h3 class="font-display text-2xl md:text-3xl font-bold">{{ card.headline }}</h3>
+        {% if card.subheadline %}<p class="mt-3 {% if loop.first %}text-white/75{% else %}text-slate-600{% endif %}">{{ card.subheadline }}</p>{% endif %}
+        <a href="{{ card.cta_href|default('#contact') }}" class="mt-6 inline-flex items-center gap-2 font-semibold {% if loop.first %}text-brand-300 hover:text-brand-200{% else %}text-brand-700 hover:text-brand-800{% endif %}">{{ card.cta_label|default('Scopri') }} <span aria-hidden="true">&rarr;</span></a>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>

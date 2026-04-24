@@ -1,0 +1,30 @@
+{# Pricing tiers (3 plans), highlighted center #}
+<section id="{{ section.id|default('pricing') }}" class="py-20 lg:py-24 bg-white">
+  <div class="max-w-content mx-auto px-6 lg:px-8">
+    <div class="text-center max-w-2xl mx-auto reveal">
+      {% if section.eyebrow %}<p class="text-sm font-semibold uppercase tracking-wide text-brand-700">{{ section.eyebrow }}</p>{% endif %}
+      <h2 class="mt-2 font-display text-3xl md:text-4xl font-bold tracking-tight">{{ section.headline }}</h2>
+      {% if section.subheadline %}<p class="mt-4 text-lg text-slate-600">{{ section.subheadline }}</p>{% endif %}
+    </div>
+
+    <div class="mt-14 grid md:grid-cols-3 gap-6 lg:gap-8">
+      {% for p in section.items %}
+      <article class="reveal relative rounded-2xl p-8 {% if p.featured %}bg-ink text-white ring-2 ring-brand-600 shadow-xl scale-[1.02]{% else %}bg-surface ring-1 ring-slate-200/80{% endif %}">
+        {% if p.featured %}<span class="absolute -top-3 right-6 bg-brand-500 text-white text-xs font-semibold px-3 py-1 rounded-full">Consigliato</span>{% endif %}
+        <h3 class="text-lg font-semibold {% if p.featured %}text-white{% else %}text-ink{% endif %}">{{ p.name }}</h3>
+        <p class="{% if p.featured %}text-white/70{% else %}text-slate-500{% endif %} text-sm mt-1">{{ p.description|default('') }}</p>
+        <div class="mt-6 flex items-baseline gap-1">
+          <span class="text-4xl font-extrabold">{{ p.price }}</span>
+          {% if p.period %}<span class="{% if p.featured %}text-white/70{% else %}text-slate-500{% endif %} text-sm">/{{ p.period }}</span>{% endif %}
+        </div>
+        {% if p.features %}
+        <ul class="mt-6 space-y-2">
+          {% for feat in p.features %}<li class="flex gap-2 {% if p.featured %}text-white/90{% else %}text-slate-700{% endif %}"><span class="{% if p.featured %}text-brand-300{% else %}text-brand-600{% endif %} mt-1">&#10003;</span><span>{{ feat }}</span></li>{% endfor %}
+        </ul>
+        {% endif %}
+        <a href="{{ p.cta_href|default('#contact') }}" class="mt-8 inline-flex items-center justify-center rounded-xl w-full font-semibold px-5 py-3 transition {% if p.featured %}bg-brand-500 hover:bg-brand-600 text-white{% else %}bg-ink hover:bg-black text-white{% endif %}">{{ p.cta_label|default('Inizia ora') }}</a>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>

@@ -1,0 +1,16 @@
+{# Dynamic menu section — populated from Sheets at runtime #}
+<section id="{{ section.id|default('menu') }}" class="py-20 lg:py-24 bg-surface"
+         data-sheet-section="{{ section.sheet_key|default('menu') }}" data-sheet-kind="menu">
+  <div class="max-w-content mx-auto px-6 lg:px-8">
+    <div class="text-center max-w-2xl mx-auto reveal mb-10">
+      {% if section.eyebrow %}<p class="text-sm font-semibold uppercase tracking-wide text-brand-700">{{ section.eyebrow }}</p>{% endif %}
+      <h2 class="mt-2 font-display text-3xl md:text-4xl font-bold tracking-tight">{{ section.headline|default('Menu') }}</h2>
+      {% if section.subheadline %}<p class="mt-4 text-lg text-slate-600">{{ section.subheadline }}</p>{% endif %}
+    </div>
+    <div class="reveal bg-white rounded-2xl p-6 lg:p-8 ring-1 ring-slate-200/70">
+      <div data-sheet-mount class="text-sm">
+        <p class="text-slate-500">Caricamento menu…</p>
+      </div>
+    </div>
+  </div>
+</section>

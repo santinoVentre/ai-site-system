@@ -1,0 +1,62 @@
+{
+  "name": "Telegram Notification Sender (optional)",
+  "description": "External shim: accepts an n8n webhook /webhook/notify POST and forwards to the internal telegram-bot /notify. Kept for backwards compatibility with external integrations. agent-api calls the bot directly — this workflow is no longer part of the standard flow.",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "notify",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://telegram-bot:8080/notify",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "X-API-Secret", "value": "={{ $env.AGENT_API_SECRET }}"}
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "={{ $json.body }}",
+        "options": {}
+      },
+      "id": "forward",
+      "name": "Forward to Bot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"status\": \"sent\"}"
+      },
+      "id": "respond",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [[{"node": "Forward to Bot", "type": "main", "index": 0}]]
+    },
+    "Forward to Bot": {
+      "main": [[{"node": "Respond OK", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [{"name": "notifications"}]
+}

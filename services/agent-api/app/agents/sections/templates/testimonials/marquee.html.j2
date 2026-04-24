@@ -1,0 +1,27 @@
+{# Horizontal marquee of testimonials — pauses on hover, respects reduced motion #}
+<section id="{{ section.id|default('testimonials') }}" class="py-20 lg:py-24 bg-white overflow-hidden">
+  <div class="max-w-content mx-auto px-6 lg:px-8">
+    <div class="text-center max-w-2xl mx-auto reveal mb-12">
+      {% if section.eyebrow %}<p class="text-sm font-semibold uppercase tracking-wide text-brand-700">{{ section.eyebrow }}</p>{% endif %}
+      <h2 class="mt-2 font-display text-3xl md:text-4xl font-bold tracking-tight">{{ section.headline }}</h2>
+      {% if section.subheadline %}<p class="mt-4 text-lg text-slate-600">{{ section.subheadline }}</p>{% endif %}
+    </div>
+  </div>
+
+  <div class="relative" x-data="{ paused: false }" @mouseenter="paused = true" @mouseleave="paused = false">
+    <style>
+      @keyframes mq { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+      .marquee-track { animation: mq 40s linear infinite; }
+      .marquee-track.paused { animation-play-state: paused; }
+      @media (prefers-reduced-motion: reduce) { .marquee-track { animation: none; } }
+    </style>
+    <div class="flex gap-6 w-max marquee-track" :class="paused ? 'paused' : ''">
+      {% for t in (section.items + section.items) %}
+      <figure class="w-[320px] shrink-0 rounded-2xl bg-surface ring-1 ring-slate-200/80 p-6">
+        <blockquote class="text-slate-700 text-sm leading-relaxed">&ldquo;{{ t.quote }}&rdquo;</blockquote>
+        <figcaption class="mt-4 text-sm"><span class="font-semibold text-ink">{{ t.author }}</span>{% if t.role %}<span class="text-slate-500"> · {{ t.role }}</span>{% endif %}</figcaption>
+      </figure>
+      {% endfor %}
+    </div>
+  </div>
+</section>

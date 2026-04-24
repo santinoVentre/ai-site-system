@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Job {{ job.id[:8] }} — AI Site System{% endblock %}
+{% block content %}
+
+<a href="/" class="text-secondary text-sm">← Dashboard</a>
+<h1 style="margin-top: 8px;">Dettagli job</h1>
+
+{% if error %}
+<div style="background:#7f1d1d;color:#fca5a5;border:1px solid #b91c1c;border-radius:var(--radius);padding:12px 16px;margin-bottom:16px;font-size:0.9rem;">
+    <strong>Errore:</strong> {{ error }}
+</div>
+{% endif %}
+{% if flash %}
+<div style="background:#14532d;color:#86efac;border:1px solid #16a34a;border-radius:var(--radius);padding:12px 16px;margin-bottom:16px;font-size:0.9rem;">
+    {{ flash }}
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-header">
+        <div>
+            <strong class="mono">{{ job.id }}</strong>
+        </div>
+        {% if job.status == 'deployed' %}
+            <span class="badge badge-success">{{ job.status }}</span>
+        {% elif job.status == 'failed' %}
+            <span class="badge badge-danger">{{ job.status }}</span>
+        {% elif job.status == 'awaiting_approval' %}
+            <span class="badge badge-warning">{{ job.status }}</span>
+        {% elif job.status == 'cancelled' %}
+            <span class="badge badge-neutral">{{ job.status }}</span>
+        {% else %}
+            <span class="badge badge-info">{{ job.status }}</span>
+        {% endif %}
+    </div>
+
+    <table>
+        <tr><td class="text-secondary" style="width: 150px;">Tipo</td><td>{{ job.job_type }}</td></tr>
+        <tr><td class="text-secondary">Brief</td><td>{{ job.brief or '—' }}</td></tr>
+        {% if job.project_id %}
+        <tr><td class="text-secondary">Progetto</td><td><a href="/projects/{{ job.project_id }}">{{ job.project_id[:12] }}…</a></td></tr>
+        {% endif %}
+        {% if job.error_message %}
+        <tr><td class="text-secondary">Errore</td><td style="color: var(--danger);">{{ job.error_message }}</td></tr>
+        {% endif %}
+        <tr><td class="text-secondary">Creato</td><td>{{ job.created_at[:19] if job.created_at else '—' }}</td></tr>
+        {% if job.started_at %}
+        <tr><td class="text-secondary">Avviato</td><td>{{ job.started_at[:19] }}</td></tr>
+        {% endif %}
+        {% if job.completed_at %}
+        <tr><td class="text-secondary">Completato</td><td>{{ job.completed_at[:19] }}</td></tr>
+        {% endif %}
+    </table>
+
+    {% if job.result %}
+    <div style="margin-top: 16px;">
+        <strong class="text-sm">Risultato</strong>
+        <pre style="background: var(--bg); padding: 12px; border-radius: var(--radius); margin-top: 8px; font-size: 0.85rem; overflow-x: auto;">{{ job.result | tojson(indent=2) }}</pre>
+    </div>
+    {% endif %}
+
+    <div class="flex gap-2 items-center" style="margin-top: 16px;">
+        {% if job.status in ['failed', 'cancelled'] %}
+        <form method="POST" action="/retry-job/{{ job.id }}" style="display:inline;">
+            <button type="submit" class="btn btn-primary btn-sm">Riprova</button>
+        </form>
+        {% endif %}
+        {% if job.status in ['new', 'running'] %}
+        <form method="POST" action="/cancel-job/{{ job.id }}" style="display:inline;"
+              onsubmit="return confirm('Annullare questo job?');">
+            <button type="submit" class="btn btn-sm btn-danger">Annulla</button>
+        </form>
+        {% endif %}
+        {% if job.project_id %}
+        <a href="/projects/{{ job.project_id }}" class="btn btn-sm" style="background: var(--border);">Apri progetto</a>
+        {% endif %}
+    </div>
+</div>
+
+{# QA report (if any) #}
+{% if qa_reports and qa_reports|length > 0 %}
+{% set qa = qa_reports[0] %}
+<div class="card" style="margin-top: 24px;">
+    <h2 style="margin-top:0;">QA</h2>
+    <div class="text-sm text-secondary" style="margin-bottom:8px;">Stato: <strong>{{ qa.overall_status or '—' }}</strong></div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        <div style="background:var(--bg);padding:8px 14px;border-radius:var(--radius);"><span class="text-secondary text-sm">Desktop</span> <strong>{{ qa.desktop_score if qa.desktop_score is not none else '—' }}</strong></div>
+        <div style="background:var(--bg);padding:8px 14px;border-radius:var(--radius);"><span class="text-secondary text-sm">Mobile</span> <strong>{{ qa.mobile_score if qa.mobile_score is not none else '—' }}</strong></div>
+        <div style="background:var(--bg);padding:8px 14px;border-radius:var(--radius);"><span class="text-secondary text-sm">A11y</span> <strong>{{ qa.accessibility_issues|length if qa.accessibility_issues else 0 }}</strong></div>
+        <div style="background:var(--bg);padding:8px 14px;border-radius:var(--radius);"><span class="text-secondary text-sm">Console</span> <strong>{{ qa.console_errors|length if qa.console_errors else 0 }}</strong></div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Events Timeline -->
+<h2 style="margin-top: 32px;">Timeline eventi</h2>
+{% if events %}
+<div class="card">
+    <div class="timeline">
+        {% for e in events %}
+        <div class="timeline-item">
+            <div class="flex gap-2 items-center">
+                {% if e.from_status %}
+                <span class="badge badge-neutral">{{ e.from_status }}</span>
+                <span class="text-secondary">→</span>
+                {% endif %}
+                <span class="badge badge-info">{{ e.to_status }}</span>
+                {% if e.agent %}
+                <span class="text-secondary text-sm">by {{ e.agent }}</span>
+                {% endif %}
+            </div>
+            {% if e.message %}
+            <div class="text-sm" style="margin-top: 4px;">{{ e.message }}</div>
+            {% endif %}
+            <div class="text-sm text-secondary" style="margin-top: 4px;">{{ e.created_at[:19] if e.created_at else '' }}</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<div class="card text-secondary">Nessun evento registrato.</div>
+{% endif %}
+
+{% endblock %}

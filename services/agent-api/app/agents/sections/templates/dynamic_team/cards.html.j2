@@ -1,0 +1,16 @@
+{# Dynamic team section from Sheets #}
+<section id="{{ section.id|default('team') }}" class="py-20 lg:py-24 bg-surface"
+         data-sheet-section="{{ section.sheet_key|default('team') }}" data-sheet-kind="team">
+  <div class="max-w-content mx-auto px-6 lg:px-8">
+    <div class="text-center max-w-2xl mx-auto reveal mb-12">
+      {% if section.eyebrow %}<p class="text-sm font-semibold uppercase tracking-wide text-brand-700">{{ section.eyebrow }}</p>{% endif %}
+      <h2 class="mt-2 font-display text-3xl md:text-4xl font-bold tracking-tight">{{ section.headline|default('Il nostro team') }}</h2>
+      {% if section.subheadline %}<p class="mt-4 text-lg text-slate-600">{{ section.subheadline }}</p>{% endif %}
+    </div>
+    <div class="reveal">
+      <div data-sheet-mount>
+        <p class="text-slate-500 text-sm text-center">Caricamento team…</p>
+      </div>
+    </div>
+  </div>
+</section>

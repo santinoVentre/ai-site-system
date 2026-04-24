@@ -1,0 +1,23 @@
+{# Full-bleed hero with dark overlay, centered text #}
+<section id="{{ section.id|default('home') }}" class="relative isolate overflow-hidden min-h-[80vh] flex items-center">
+  <div class="absolute inset-0 -z-10">
+    {% if section.image_url %}
+      <img src="{{ section.image_url }}" alt="{{ section.image_alt|default(section.headline) }}" class="w-full h-full object-cover" loading="eager" fetchpriority="high" />
+    {% else %}
+      <div class="w-full h-full bg-gradient-to-br from-brand-700 to-brand-900"></div>
+    {% endif %}
+    <div class="absolute inset-0 bg-gradient-to-b from-black/30 via-black/50 to-black/70"></div>
+  </div>
+
+  <div class="relative max-w-content mx-auto px-6 lg:px-8 text-center py-24 lg:py-32 text-white reveal">
+    {% if section.eyebrow %}<p class="inline-flex items-center rounded-full bg-white/10 backdrop-blur text-white/90 text-xs font-semibold tracking-wide uppercase px-3 py-1 mb-6">{{ section.eyebrow }}</p>{% endif %}
+    <h1 class="font-display font-extrabold text-4xl md:text-6xl lg:text-7xl leading-tight tracking-tight max-w-4xl mx-auto">
+      {{ section.headline }}
+    </h1>
+    {% if section.subheadline %}<p class="mt-6 text-lg md:text-xl text-white/85 max-w-2xl mx-auto">{{ section.subheadline }}</p>{% endif %}
+    <div class="mt-10 flex flex-wrap gap-3 justify-center">
+      {% if section.primary_cta %}<a href="{{ section.primary_cta.href|default('#contact') }}" class="inline-flex items-center rounded-xl bg-white text-ink hover:bg-brand-50 font-semibold px-6 py-3 shadow-sm transition">{{ section.primary_cta.label }}</a>{% endif %}
+      {% if section.secondary_cta %}<a href="{{ section.secondary_cta.href|default('#services') }}" class="inline-flex items-center rounded-xl bg-white/10 hover:bg-white/20 text-white ring-1 ring-white/40 font-semibold px-6 py-3 backdrop-blur transition">{{ section.secondary_cta.label }}</a>{% endif %}
+    </div>
+  </div>
+</section>

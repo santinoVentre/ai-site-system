@@ -1,0 +1,23 @@
+{# 3-column feature grid with icons #}
+<section id="{{ section.id|default('features') }}" class="py-20 lg:py-24 bg-white">
+  <div class="max-w-content mx-auto px-6 lg:px-8">
+    <div class="text-center max-w-2xl mx-auto reveal">
+      {% if section.eyebrow %}<p class="text-sm font-semibold uppercase tracking-wide text-brand-700">{{ section.eyebrow }}</p>{% endif %}
+      <h2 class="mt-2 font-display text-3xl md:text-4xl font-bold tracking-tight text-ink">{{ section.headline }}</h2>
+      {% if section.subheadline %}<p class="mt-4 text-lg text-slate-600">{{ section.subheadline }}</p>{% endif %}
+    </div>
+
+    <div class="mt-14 grid md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+      {% for f in section.items %}
+      <article class="reveal group relative rounded-2xl bg-surface ring-1 ring-slate-200/70 p-7 hover:ring-brand-300 hover:shadow-md transition">
+        <div class="w-12 h-12 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center mb-5">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="{{ f.icon_path|default('M5 13l4 4L19 7') }}"/></svg>
+        </div>
+        <h3 class="font-semibold text-lg text-ink">{{ f.title }}</h3>
+        <p class="mt-2 text-slate-600 leading-relaxed">{{ f.description }}</p>
+        {% if f.link_href %}<a href="{{ f.link_href }}" class="mt-4 inline-flex items-center text-sm font-semibold text-brand-700 hover:text-brand-800">{{ f.link_label|default('Scopri di più') }} <span aria-hidden="true" class="ml-1">&rarr;</span></a>{% endif %}
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>

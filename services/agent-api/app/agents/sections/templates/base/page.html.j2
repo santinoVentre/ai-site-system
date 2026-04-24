@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="{{ page.lang|default('it') }}" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>{{ page.meta_title|default(page.title)|default(brand.name) }}</title>
+  <meta name="description" content="{{ page.meta_description|default(page.subtitle|default('')) }}" />
+  <link rel="canonical" href="{{ page.canonical|default('') }}" />
+
+  {# Open Graph & Twitter #}
+  <meta property="og:site_name" content="{{ brand.name }}" />
+  <meta property="og:title" content="{{ page.meta_title|default(page.title) }}" />
+  <meta property="og:description" content="{{ page.meta_description|default('') }}" />
+  <meta property="og:type" content="{{ page.og_type|default('website') }}" />
+  {% if page.canonical %}<meta property="og:url" content="{{ page.canonical }}" />{% endif %}
+  {% if page.og_image %}<meta property="og:image" content="{{ page.og_image }}" />{% endif %}
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="theme-color" content="{{ design.colors.primary }}" />
+
+  {# Favicon — data URI so we always have one #}
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23{{ design.colors.primary|replace('#','') }}'/%3E%3Ctext x='8' y='11' font-size='9' font-family='sans-serif' font-weight='700' fill='white' text-anchor='middle'%3E{{ brand.name[:1]|upper }}%3C/text%3E%3C/svg%3E" />
+
+  {# Google Fonts #}
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family={{ design.typography.headings_font_param|default('Inter:wght@400;600;700;800') }}&family={{ design.typography.body_font_param|default('Inter:wght@400;500;600') }}&display=swap" />
+
+  {# Tailwind CSS via CDN with JIT + project config #}
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50:  '{{ design.colors.brand_50  | default("#f5f7ff") }}',
+              100: '{{ design.colors.brand_100 | default("#e4ebff") }}',
+              200: '{{ design.colors.brand_200 | default("#c1cfff") }}',
+              300: '{{ design.colors.brand_300 | default("#94a9ff") }}',
+              400: '{{ design.colors.brand_400 | default("#6b83ff") }}',
+              500: '{{ design.colors.brand_500 | default(design.colors.primary)   }}',
+              600: '{{ design.colors.brand_600 | default(design.colors.primary)   }}',
+              700: '{{ design.colors.brand_700 | default(design.colors.secondary) }}',
+              800: '{{ design.colors.brand_800 | default(design.colors.secondary) }}',
+              900: '{{ design.colors.brand_900 | default(design.colors.text_primary) }}'
+            },
+            accent: '{{ design.colors.accent }}',
+            surface: '{{ design.colors.surface }}',
+            ink: '{{ design.colors.text_primary }}',
+          },
+          fontFamily: {
+            display: ['{{ design.typography.headings_font | default("Inter") }}', 'system-ui', 'sans-serif'],
+            sans:    ['{{ design.typography.body_font     | default("Inter") }}', 'system-ui', 'sans-serif']
+          },
+          borderRadius: {
+            xl: '{{ design.component_styles.cards.border_radius | default("12px") }}',
+            '2xl': '1rem'
+          },
+          maxWidth: {
+            content: '{{ design.layout.max_width | default("1200px") }}'
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    :root {
+      --color-primary: {{ design.colors.primary }};
+      --color-secondary: {{ design.colors.secondary }};
+      --color-accent: {{ design.colors.accent }};
+      --color-bg: {{ design.colors.background }};
+      --color-surface: {{ design.colors.surface }};
+      --color-ink: {{ design.colors.text_primary }};
+      --color-muted: {{ design.colors.text_secondary }};
+      --color-border: {{ design.colors.border }};
+    }
+    html { font-family: '{{ design.typography.body_font | default("Inter") }}', system-ui, sans-serif; }
+    h1,h2,h3,h4 { font-family: '{{ design.typography.headings_font | default("Inter") }}', system-ui, sans-serif; }
+    body { background: var(--color-bg); color: var(--color-ink); }
+    /* Focus visibility for a11y */
+    :focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+    .reveal { opacity: 0; transform: translateY(14px); transition: opacity .6s ease, transform .6s ease; }
+    .reveal.visible { opacity: 1; transform: none; }
+    @media (prefers-reduced-motion: reduce) {
+      .reveal { opacity: 1; transform: none; transition: none; }
+      html { scroll-behavior: auto; }
+    }
+  </style>
+
+  {# Alpine.js for interactivity #}
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
+
+  {# Structured data — Organization / LocalBusiness #}
+  <script type="application/ld+json">
+  {{ page.structured_data | default({}) | tojson }}
+  </script>
+</head>
+
+<body class="bg-white text-ink antialiased">
+  <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[60] focus:bg-white focus:text-ink focus:px-3 focus:py-2 focus:rounded-md focus:shadow">Salta al contenuto</a>
+
+  <main id="main">
+    {{ sections_html | safe }}
+  </main>
+
+  {# Scroll reveal (always included — idempotent if no .reveal nodes exist) #}
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      var els = document.querySelectorAll('.reveal');
+      if (!els.length || !('IntersectionObserver' in window)) {
+        els.forEach(function (el) { el.classList.add('visible'); });
+        return;
+      }
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) {
+          if (en.isIntersecting) {
+            en.target.classList.add('visible');
+            io.unobserve(en.target);
+          }
+        });
+      }, { threshold: 0.12 });
+      els.forEach(function (el) { io.observe(el); });
+    });
+  </script>
+
+  {% if sheets_data_url %}
+  <script>
+    window.SHEETS_DATA_URL = {{ sheets_data_url | tojson }};
+    document.addEventListener('DOMContentLoaded', async function () {
+      if (!window.SHEETS_DATA_URL) return;
+      try {
+        var resp = await fetch(window.SHEETS_DATA_URL, { cache: 'no-store' });
+        if (!resp.ok) return;
+        var data = await resp.json();
+        document.querySelectorAll('[data-sheet-section]').forEach(function (container) {
+          var key = container.getAttribute('data-sheet-section');
+          var rows = data[key];
+          if (!Array.isArray(rows) || !rows.length) return;
+          var kind = container.getAttribute('data-sheet-kind') || 'generic';
+          renderSheetSection(container, kind, rows);
+        });
+      } catch (e) { console.warn('Sheets load failed:', e); }
+    });
+
+    function renderSheetSection(container, kind, rows) {
+      var mount = container.querySelector('[data-sheet-mount]') || container;
+      mount.innerHTML = '';
+      if (kind === 'hours') {
+        var tbl = document.createElement('table');
+        tbl.className = 'w-full text-left border-collapse';
+        rows.forEach(function (r) {
+          var tr = document.createElement('tr');
+          tr.className = 'border-b border-slate-200';
+          var keys = Object.keys(r);
+          tr.innerHTML = '<th scope="row" class="py-3 pr-4 font-medium text-ink">' + (r[keys[0]] || '') + '</th>' +
+                         '<td class="py-3">' + keys.slice(1).map(function (k) { return '<span class="mr-3">' + (r[k] || '') + '</span>'; }).join('') + '</td>';
+          tbl.appendChild(tr);
+        });
+        mount.appendChild(tbl);
+      } else if (kind === 'faq') {
+        rows.forEach(function (r) {
+          var d = document.createElement('details');
+          d.className = 'group py-4 border-b border-slate-200';
+          var s = document.createElement('summary');
+          s.className = 'cursor-pointer font-medium flex items-center justify-between';
+          s.textContent = (r.Domanda || r.Question || Object.values(r)[0] || '');
+          var p = document.createElement('div');
+          p.className = 'mt-2 text-slate-600';
+          p.textContent = (r.Risposta || r.Answer || Object.values(r)[1] || '');
+          d.appendChild(s); d.appendChild(p);
+          mount.appendChild(d);
+        });
+      } else if (kind === 'gallery') {
+        var g = document.createElement('div');
+        g.className = 'grid grid-cols-2 md:grid-cols-3 gap-4';
+        rows.forEach(function (r) {
+          var url = r.Foto_URL || r.Photo_URL || r.URL || '';
+          if (!url) return;
+          var fig = document.createElement('figure');
+          fig.className = 'aspect-square overflow-hidden rounded-xl';
+          fig.innerHTML = '<img src="' + url + '" alt="' + (r.Titolo || r.Title || '') + '" class="w-full h-full object-cover" loading="lazy" />';
+          g.appendChild(fig);
+        });
+        mount.appendChild(g);
+      } else if (kind === 'team') {
+        var grid = document.createElement('div');
+        grid.className = 'grid grid-cols-1 md:grid-cols-3 gap-6';
+        rows.forEach(function (r) {
+          var c = document.createElement('article');
+          c.className = 'bg-surface rounded-2xl p-6 text-center shadow-sm';
+          var img = r.Foto_URL || r.Photo || '';
+          c.innerHTML =
+            (img ? '<img src="' + img + '" alt="' + (r.Nome || '') + '" class="w-24 h-24 rounded-full object-cover mx-auto mb-4" loading="lazy" />' : '') +
+            '<h3 class="font-semibold">' + (r.Nome || r.Name || '') + '</h3>' +
+            '<p class="text-sm text-slate-500">' + (r.Ruolo || r.Role || '') + '</p>' +
+            (r.Bio ? '<p class="mt-3 text-sm text-slate-600">' + r.Bio + '</p>' : '');
+          grid.appendChild(c);
+        });
+        mount.appendChild(grid);
+      } else if (kind === 'menu') {
+        var categories = {};
+        rows.forEach(function (r) {
+          var cat = r.Categoria || r.Category || 'Menu';
+          (categories[cat] = categories[cat] || []).push(r);
+        });
+        Object.keys(categories).forEach(function (cat) {
+          var h = document.createElement('h3');
+          h.className = 'mt-6 mb-3 text-lg font-semibold';
+          h.textContent = cat;
+          mount.appendChild(h);
+          var list = document.createElement('div');
+          list.className = 'divide-y divide-slate-200';
+          categories[cat].forEach(function (r) {
+            var row = document.createElement('div');
+            row.className = 'flex items-start justify-between py-3 gap-6';
+            row.innerHTML =
+              '<div><div class="font-medium">' + (r.Nome || r.Name || '') + '</div>' +
+              '<div class="text-sm text-slate-500">' + (r.Descrizione || r.Description || '') + '</div></div>' +
+              '<div class="shrink-0 font-semibold text-brand-700">' + (r.Prezzo || r.Price || '') + '</div>';
+            list.appendChild(row);
+          });
+          mount.appendChild(list);
+        });
+      } else {
+        var tbl2 = document.createElement('table');
+        tbl2.className = 'w-full text-left border-collapse';
+        var headers = Object.keys(rows[0] || {});
+        var thead = document.createElement('thead');
+        thead.innerHTML = '<tr class="border-b border-slate-200">' + headers.map(function (h) { return '<th class="py-2 pr-4 font-semibold">' + h + '</th>'; }).join('') + '</tr>';
+        var tbody = document.createElement('tbody');
+        rows.forEach(function (r) {
+          var tr = document.createElement('tr');
+          tr.className = 'border-b border-slate-100';
+          tr.innerHTML = headers.map(function (h) { return '<td class="py-2 pr-4">' + (r[h] || '') + '</td>'; }).join('');
+          tbody.appendChild(tr);
+        });
+        tbl2.appendChild(thead); tbl2.appendChild(tbody);
+        mount.appendChild(tbl2);
+      }
+    }
+  </script>
+  {% endif %}
+</body>
+</html>
