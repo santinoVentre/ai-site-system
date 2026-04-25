@@ -19,11 +19,13 @@ echo "   secrets/   -> /tmp/aisite.secrets.${TS}.bak"
 echo
 echo "==> 2/8 Sync repo with origin/main"
 git fetch --all --prune
-# Force-overwrite any matching working-tree file (tracked or untracked) with origin/main version
-git checkout origin/main -- .
-# Move local main branch to origin/main and switch to it
-git branch -f main origin/main
-git checkout main
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+if [ "$CURRENT_BRANCH" != "main" ]; then
+    # Switch to main without losing any uncommitted .env/secrets work (they're gitignored)
+    git checkout -B main origin/main
+fi
+# Hard-reset to origin/main — drops any local commits/changes (.env + secrets are gitignored)
+git reset --hard origin/main
 git branch -d master 2>/dev/null || true
 # Defensive: if .env or secrets got removed somehow (they are gitignored, but just in case)
 [ -f .env ] || cp "/tmp/aisite.env.${TS}.bak" .env
