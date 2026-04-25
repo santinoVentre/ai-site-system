@@ -61,7 +61,11 @@ append_if_missing "CORS_ALLOWED_ORIGINS" "https://${DOMAIN_VAL:-localhost}"
 
 echo
 echo "==> 4/8 Pre-create data directories (idempotent)"
-mkdir -p data/generated-sites data/artifacts data/backups data/certbot/www data/certbot/conf nginx/ssl
+mkdir -p data/generated-sites data/artifacts data/backups data/cms-assets data/certbot/www data/certbot/conf nginx/ssl
+# Container runs as appuser uid:gid = 999:999 (see services/agent-api/Dockerfile).
+# Bind-mounted CMS asset dir must be writable by that uid so image uploads work.
+chown -R 999:999 data/cms-assets
+chmod 755 data/cms-assets
 echo "   ok"
 
 echo

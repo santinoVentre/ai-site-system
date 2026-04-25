@@ -47,6 +47,11 @@ append_if_missing "SITE_BASE_URL" "https://${DOMAIN:-localhost}"
 append_if_missing "CMS_ASSETS_PATH" "/data/cms-assets"
 append_if_missing "MAX_UPLOAD_SIZE" "10485760"
 
+mkdir -p data/cms-assets
+# agent-api runs as appuser uid:gid = 999:999 (see Dockerfile)
+chown -R 999:999 data/cms-assets
+chmod 755 data/cms-assets
+
 echo "==> 3/6 Building changed service images"
 docker compose build --pull agent-api admin-web qa-runner telegram-bot
 
