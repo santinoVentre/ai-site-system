@@ -5,7 +5,7 @@ Each section template accepts a consistent data contract:
     - design: design tokens (colors, fonts, radii) and Tailwind config snippet
     - page: dict with page-level context (title, slug, lang, pages list for navbar)
     - images: image URL map keyed by section id
-    - sheets_url: URL to fetch dynamic Sheets data (or None)
+    - cms_data_url: URL the rendered site polls to hydrate dynamic sections (or None)
     - brand: dict with brand info (name, logo_url, social)
 """
 

@@ -1,0 +1,40 @@
+{# Dynamic pricing — prerendered + hydrated #}
+{% set cms_key = section.cms_key|default(section.id|default('pricing')) %}
+{% set items = section.cms_items|default([]) %}
+<section id="{{ section.id|default('pricing') }}" class="py-20 lg:py-24 bg-surface"
+         data-cms-section="{{ cms_key }}" data-cms-kind="pricing">
+  <div class="max-w-content mx-auto px-6 lg:px-8">
+    <div class="text-center max-w-2xl mx-auto reveal mb-12">
+      {% if section.eyebrow %}<p class="text-sm font-semibold uppercase tracking-wide text-brand-700">{{ section.eyebrow }}</p>{% endif %}
+      <h2 class="mt-2 font-display text-3xl md:text-4xl font-bold tracking-tight">{{ section.headline|default('Listino') }}</h2>
+      {% if section.subheadline %}<p class="mt-4 text-lg text-slate-600">{{ section.subheadline }}</p>{% endif %}
+    </div>
+    <div class="reveal">
+      <div data-cms-mount class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% if items %}
+          {% for it in items %}
+            <article class="bg-white rounded-2xl p-6 ring-1 ring-slate-200/70 flex flex-col {% if it.highlight %}ring-2 ring-brand-600 shadow-lg scale-[1.02]{% endif %}">
+              <h3 class="font-semibold text-ink text-lg">{{ it.name|default('') }}</h3>
+              <div class="mt-4 flex items-baseline gap-1">
+                <span class="text-3xl font-bold text-ink">{{ it.price|default('') }}{% if it.price is number or (it.price|string).replace('.','',1).isdigit() %} €{% endif %}</span>
+                {% if it.period %}<span class="text-sm text-slate-500">{{ it.period }}</span>{% endif %}
+              </div>
+              {% if it.features %}
+                <ul class="mt-5 space-y-2 flex-1">
+                  {% for f in it.features %}
+                    <li class="flex items-start gap-2 text-sm text-slate-700"><span class="text-brand-600 mt-0.5">✓</span><span>{{ f }}</span></li>
+                  {% endfor %}
+                </ul>
+              {% endif %}
+              {% if it.cta_label %}
+                <a href="{{ it.cta_href|default('#contact') }}" class="mt-6 inline-flex items-center justify-center rounded-xl px-4 py-2 font-medium {% if it.highlight %}bg-brand-600 text-white hover:bg-brand-700{% else %}ring-1 ring-slate-300 hover:bg-slate-50{% endif %}">{{ it.cta_label }}</a>
+              {% endif %}
+            </article>
+          {% endfor %}
+        {% else %}
+          <p class="text-slate-500 text-sm text-center col-span-full">Caricamento listino…</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>

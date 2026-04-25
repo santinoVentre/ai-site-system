@@ -130,47 +130,89 @@ SECTION_CATALOG: dict[str, dict[str, dict[str, Any]]] = {
             "fields": ["title", "subtitle", "items"],
         },
     },
-    # Dynamic sections — render a placeholder and hydrate from Sheets at runtime
+    # Dynamic sections — prerendered server-side from CMS, hydrated client-side
     "dynamic_menu": {
         "cards": {
             "template": "dynamic_menu/cards.html.j2",
-            "description": "Restaurant/product menu loaded from Sheets; server renders graceful fallback.",
-            "fields": ["title", "subtitle", "sheet_key"],
+            "description": "Menu (ristorante/prodotti) caricato dal CMS; categorie + prezzi + foto.",
+            "fields": ["eyebrow", "headline", "subheadline", "cms_key"],
         },
     },
     "dynamic_hours": {
         "table": {
             "template": "dynamic_hours/table.html.j2",
-            "description": "Opening hours key-value table from Sheets.",
-            "fields": ["title", "subtitle", "sheet_key"],
+            "description": "Tabella orari di apertura dal CMS.",
+            "fields": ["eyebrow", "headline", "subheadline", "cms_key"],
         },
     },
     "dynamic_team": {
         "cards": {
             "template": "dynamic_team/cards.html.j2",
-            "description": "Team members loaded from Sheets.",
-            "fields": ["title", "subtitle", "sheet_key"],
+            "description": "Membri del team dal CMS (foto, ruolo, bio).",
+            "fields": ["eyebrow", "headline", "subheadline", "cms_key"],
         },
     },
     "dynamic_faq": {
         "accordion": {
             "template": "dynamic_faq/accordion.html.j2",
-            "description": "FAQ accordion loaded from Sheets.",
-            "fields": ["title", "subtitle", "sheet_key"],
+            "description": "FAQ accordion dal CMS.",
+            "fields": ["eyebrow", "headline", "subheadline", "cms_key"],
         },
     },
     "dynamic_gallery": {
         "grid": {
             "template": "dynamic_gallery/grid.html.j2",
-            "description": "Image gallery loaded from Sheets.",
-            "fields": ["title", "subtitle", "sheet_key"],
+            "description": "Galleria immagini dal CMS.",
+            "fields": ["eyebrow", "headline", "subheadline", "cms_key"],
+        },
+    },
+    "dynamic_testimonials": {
+        "cards": {
+            "template": "dynamic_testimonials/cards.html.j2",
+            "description": "Testimonianze clienti dal CMS (con valutazione e foto).",
+            "fields": ["eyebrow", "headline", "subheadline", "cms_key"],
+        },
+    },
+    "dynamic_services": {
+        "cards": {
+            "template": "dynamic_services/cards.html.j2",
+            "description": "Servizi offerti dal CMS, con descrizione e prezzo.",
+            "fields": ["eyebrow", "headline", "subheadline", "cms_key"],
+        },
+    },
+    "dynamic_pricing": {
+        "tiers": {
+            "template": "dynamic_pricing/tiers.html.j2",
+            "description": "Piani/pacchetti dal CMS con feature e CTA.",
+            "fields": ["eyebrow", "headline", "subheadline", "cms_key"],
+        },
+    },
+    "dynamic_products": {
+        "cards": {
+            "template": "dynamic_products/cards.html.j2",
+            "description": "Catalogo prodotti dal CMS (foto, prezzo, disponibilità).",
+            "fields": ["eyebrow", "headline", "subheadline", "cms_key"],
+        },
+    },
+    "dynamic_events": {
+        "cards": {
+            "template": "dynamic_events/cards.html.j2",
+            "description": "Eventi dal CMS con data, ora, luogo e link prenotazione.",
+            "fields": ["eyebrow", "headline", "subheadline", "cms_key"],
+        },
+    },
+    "dynamic_contact": {
+        "list": {
+            "template": "dynamic_contact/list.html.j2",
+            "description": "Lista informazioni di contatto dal CMS (telefono, email, indirizzo, social).",
+            "fields": ["eyebrow", "headline", "subheadline", "cms_key"],
         },
     },
     "dynamic_generic": {
         "table": {
             "template": "dynamic_generic/table.html.j2",
-            "description": "Fallback table renderer for any Sheets-backed section.",
-            "fields": ["title", "subtitle", "sheet_key"],
+            "description": "Fallback: tabella generica per qualsiasi sezione CMS.",
+            "fields": ["eyebrow", "headline", "subheadline", "cms_key"],
         },
     },
 }

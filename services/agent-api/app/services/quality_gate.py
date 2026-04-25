@@ -33,7 +33,8 @@ async def run_quality_gate(
     image_map: dict[str, str] | None = None,
     project_slug: str,
     revision_number: int,
-    sheets_data_url: str | None = None,
+    cms_data: dict[str, dict] | None = None,
+    cms_data_url: str | None = None,
 ) -> tuple[dict, list[dict] | None]:
     """Run reviewer, optionally rebuild up to `quality_max_iterations` if score is low.
 
@@ -71,7 +72,8 @@ async def run_quality_gate(
                 design_tokens=design_tokens,
                 image_urls=image_map or {},
                 project_slug=project_slug,
-                sheets_data_url=sheets_data_url,
+                cms_data=cms_data,
+                cms_data_url=cms_data_url,
                 review_issues=issues,
             )
             last_files = manifest.get("files") or []

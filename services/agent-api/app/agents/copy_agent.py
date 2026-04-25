@@ -108,14 +108,22 @@ async def run_copy_agent(project_spec: dict, research: dict | None = None) -> di
     if research:
         user_prompt += f"\n\nRESEARCH FINDINGS:\n{research}"
 
-    # Surface dynamic sections so the copywriter knows NOT to write items for them
+    # Surface dynamic sections so the copywriter knows NOT to write items for
+    # them — items live in the CMS and are populated by the customer. The copy
+    # agent only provides the wrapping headline/subheadline.
     dyn = project_spec.get("dynamic_sections") or []
     if dyn:
+        lines = []
+        for d in dyn:
+            if not isinstance(d, dict):
+                continue
+            key = d.get("key") or d.get("name") or "?"
+            label = d.get("label") or "?"
+            kind = d.get("kind") or "?"
+            lines.append(f"  - id: {key}  label: {label}  kind: {kind}")
         user_prompt += (
-            "\n\nDYNAMIC SECTIONS (content will be loaded from Google Sheets — only provide headline/subheadline, no items):\n"
-            + "\n".join(
-                f"  - id: {d.get('name', '?')}  label: {d.get('label', '?')}" for d in dyn if isinstance(d, dict)
-            )
+            "\n\nDYNAMIC SECTIONS (managed by the customer in the CMS — only provide eyebrow/headline/subheadline keyed by the section id, no items):\n"
+            + "\n".join(lines)
         )
 
     try:

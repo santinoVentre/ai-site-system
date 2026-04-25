@@ -20,6 +20,7 @@ services:
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
       - ./data/generated-sites:/srv/generated-sites:ro
+      - ./data/cms-assets:/srv/cms-assets:ro
       - ./data/certbot/www:/var/www/certbot:ro
       - ./data/certbot/conf:/etc/letsencrypt:ro
     depends_on:
@@ -153,8 +154,10 @@ services:
       GENERATED_SITES_PATH: /data/generated-sites
       ARTIFACTS_PATH: /data/artifacts
       PREVIEW_BASE_URL: ${PREVIEW_BASE_URL}
-      GOOGLE_SHEETS_CREDENTIALS_PATH: /secrets/gsheets-credentials.json
-      GOOGLE_DRIVE_FOLDER_ID: ${GOOGLE_DRIVE_FOLDER_ID:-}
+      CMS_ASSETS_PATH: /data/cms-assets
+      CMS_ASSETS_URL_PREFIX: ${CMS_ASSETS_URL_PREFIX:-/cms-assets}
+      CMS_MAX_UPLOAD_BYTES: ${CMS_MAX_UPLOAD_BYTES:-8388608}
+      CMS_IMAGE_MAX_DIMENSION: ${CMS_IMAGE_MAX_DIMENSION:-2400}
       SITE_BASE_URL: ${SITE_BASE_URL:-https://agent.santinoventre.com}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
       DOMAIN: ${DOMAIN}
@@ -173,6 +176,7 @@ services:
     volumes:
       - ./data/generated-sites:/data/generated-sites
       - ./data/artifacts:/data/artifacts
+      - ./data/cms-assets:/data/cms-assets
       - ./secrets:/secrets:ro
     depends_on:
       postgres:

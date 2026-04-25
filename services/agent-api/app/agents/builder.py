@@ -96,7 +96,8 @@ async def run_builder(
     design_tokens: dict,
     project_slug: str | None = None,
     image_urls: dict[str, str] | None = None,
-    sheets_data_url: str | None = None,
+    cms_data: dict[str, dict] | None = None,
+    cms_data_url: str | None = None,
     review_issues: list[dict] | None = None,
 ) -> dict:
     """Run the builder.
@@ -132,7 +133,8 @@ async def run_builder(
         design_tokens=design_tokens,
         layout_plan=layout_plan,
         image_urls=image_urls or {},
-        sheets_data_url=sheets_data_url,
+        cms_data=cms_data,
+        cms_data_url=cms_data_url,
     )
 
     files = []

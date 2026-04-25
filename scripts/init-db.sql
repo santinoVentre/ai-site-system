@@ -197,6 +197,57 @@ CREATE TABLE deployments (
 CREATE INDEX idx_deployments_project ON deployments(project_id);
 CREATE INDEX idx_deployments_revision ON deployments(revision_id);
 
+-- ---- CMS: Content Sections ----
+CREATE TABLE IF NOT EXISTS content_sections (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    kind VARCHAR(50) NOT NULL,
+    key VARCHAR(80) NOT NULL,
+    label VARCHAR(255) NOT NULL,
+    position INTEGER NOT NULL DEFAULT 0,
+    settings JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_content_sections_project ON content_sections(project_id);
+CREATE INDEX IF NOT EXISTS idx_content_sections_kind ON content_sections(kind);
+CREATE UNIQUE INDEX IF NOT EXISTS ix_content_sections_project_key ON content_sections(project_id, key);
+
+-- ---- CMS: Content Items ----
+CREATE TABLE IF NOT EXISTS content_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    section_id UUID NOT NULL REFERENCES content_sections(id) ON DELETE CASCADE,
+    position INTEGER NOT NULL DEFAULT 0,
+    data JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_content_items_section ON content_items(section_id);
+
+-- ---- CMS: Content Images ----
+CREATE TABLE IF NOT EXISTS content_images (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    original_filename VARCHAR(500),
+    stored_filename VARCHAR(500) NOT NULL,
+    mime_type VARCHAR(100) NOT NULL,
+    size_bytes INTEGER NOT NULL DEFAULT 0,
+    width INTEGER,
+    height INTEGER,
+    url VARCHAR(500) NOT NULL,
+    alt_text VARCHAR(500) DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_content_images_project ON content_images(project_id);
+CREATE INDEX IF NOT EXISTS ix_content_images_project_created ON content_images(project_id, created_at);
+
+-- Apply updated_at triggers for CMS
+CREATE TRIGGER trg_content_sections_updated BEFORE UPDATE ON content_sections FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_content_items_updated BEFORE UPDATE ON content_items FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
 -- ---- Approvals ----
 CREATE TABLE approvals (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

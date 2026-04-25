@@ -105,22 +105,81 @@ class UploadedAsset(BaseModel):
     path: str
 
 
-# ---- Google Sheets ----
+# ---- CMS (custom content sections) ----
 
-class SheetsConnectRequest(BaseModel):
-    """Connect an existing Google Spreadsheet to a project."""
-    sheet_url: str = Field(..., description="Google Sheets URL or Sheet ID")
-    client_email: Optional[str] = None
-
-class SheetsCreateRequest(BaseModel):
-    """Create a new Google Spreadsheet for a project."""
-    sections: list[dict] = Field(
-        default_factory=list,
-        description="List of section dicts: {name, label, columns, description}. "
-                    "If empty, the service creates a single generic 'Dati' tab.",
+class ContentSectionCreate(BaseModel):
+    kind: str = Field(..., description="Kind key from KIND_REGISTRY (e.g. 'menu')")
+    key: Optional[str] = Field(
+        None,
+        description="Stable slug used by the rendered site. Auto-generated if omitted.",
     )
-    client_email: Optional[str] = None
-    title: Optional[str] = None
+    label: Optional[str] = None
+    settings: dict = Field(default_factory=dict)
+    position: Optional[int] = None
+    seed_examples: bool = Field(
+        default=False,
+        description="If true, seed the section with the kind's example items.",
+    )
+
+
+class ContentSectionUpdate(BaseModel):
+    label: Optional[str] = None
+    settings: Optional[dict] = None
+    position: Optional[int] = None
+
+
+class ContentSectionOut(BaseModel):
+    id: UUID
+    project_id: UUID
+    kind: str
+    key: str
+    label: str
+    position: int
+    settings: dict
+    created_at: datetime
+    updated_at: datetime
+    item_count: int = 0
+    model_config = {"from_attributes": True}
+
+
+class ContentItemCreate(BaseModel):
+    data: dict = Field(default_factory=dict)
+    position: Optional[int] = None
+
+
+class ContentItemUpdate(BaseModel):
+    data: Optional[dict] = None
+    position: Optional[int] = None
+
+
+class ContentItemOut(BaseModel):
+    id: UUID
+    section_id: UUID
+    position: int
+    data: dict
+    created_at: datetime
+    updated_at: datetime
+    model_config = {"from_attributes": True}
+
+
+class ContentImageOut(BaseModel):
+    id: UUID
+    project_id: UUID
+    original_filename: Optional[str]
+    stored_filename: str
+    mime_type: str
+    size_bytes: int
+    width: Optional[int]
+    height: Optional[int]
+    url: str
+    alt_text: str = ""
+    created_at: datetime
+    model_config = {"from_attributes": True}
+
+
+class ReorderRequest(BaseModel):
+    """Reorder items by id (in the desired order)."""
+    ids: list[UUID]
 
 
 # ---- Website Creation ----

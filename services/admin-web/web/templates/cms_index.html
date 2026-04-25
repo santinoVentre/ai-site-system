@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}CMS — {{ project.name }}{% endblock %}
+{% block content %}
+
+<style>
+    .cms-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px; }
+    .cms-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px; display:flex; flex-direction:column; gap:8px; transition:transform .12s, border-color .12s; }
+    .cms-card:hover { transform:translateY(-2px); border-color:var(--primary); }
+    .cms-card h3 { display:flex; align-items:center; gap:8px; margin:0; font-size:1rem; color:var(--text); }
+    .cms-card .icon { font-size:1.4rem; line-height:1; }
+    .cms-card .desc { font-size:0.85rem; color:var(--text-secondary); flex:1; line-height:1.45; }
+    .cms-card .meta { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:0.78rem; color:var(--text-secondary); padding-top:8px; border-top:1px dashed var(--border); }
+    .cms-actions { display:flex; gap:6px; }
+    .cms-actions a, .cms-actions button { padding:4px 10px; font-size:0.78rem; }
+    .picker-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px; }
+    .picker-tile { background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); padding:12px; cursor:pointer; transition:border-color .12s, transform .12s; text-align:left; }
+    .picker-tile:hover { border-color:var(--primary); transform:translateY(-1px); }
+    .picker-tile .picker-icon { font-size:1.5rem; }
+    .picker-tile .picker-label { font-weight:600; margin-top:6px; }
+    .picker-tile .picker-desc { font-size:0.78rem; color:var(--text-secondary); margin-top:4px; }
+    .modal-back { position:fixed; inset:0; background:rgba(0,0,0,.55); display:flex; align-items:center; justify-content:center; z-index:50; padding:20px; }
+    .modal-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; max-width:760px; width:100%; max-height:85vh; overflow-y:auto; }
+    .toast { position:fixed; bottom:20px; right:20px; background:var(--surface); border:1px solid var(--primary); border-radius:8px; padding:12px 16px; font-size:0.9rem; box-shadow:0 8px 30px rgba(0,0,0,.4); z-index:100; }
+    .toast.error { border-color:var(--danger); }
+</style>
+
+<div x-data="cmsIndex()" x-init="boot()">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;gap:12px;flex-wrap:wrap;">
+        <div>
+            <a href="/projects/{{ project.id }}" class="text-secondary text-sm">← {{ project.name }}</a>
+            <h1 style="margin-top:8px;">Contenuti dinamici</h1>
+            <div class="text-secondary text-sm">Gestisci menu, orari, FAQ, gallery e altri contenuti aggiornabili dal cliente.</div>
+        </div>
+        <div class="flex gap-2 items-center">
+            <button class="btn btn-sm" style="background:var(--border);" @click="showPicker=true">+ Nuova sezione</button>
+            <button class="btn btn-sm btn-primary" @click="publish()" :disabled="publishing">
+                <span x-show="!publishing">🚀 Pubblica modifiche</span>
+                <span x-show="publishing">Pubblicazione…</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Loading / empty state -->
+    <template x-if="loading">
+        <div class="card text-secondary">Caricamento…</div>
+    </template>
+    <template x-if="!loading && sections.length === 0">
+        <div class="card" style="text-align:center;padding:40px;">
+            <div style="font-size:2.5rem;">🗂️</div>
+            <h2 style="margin-top:8px;">Nessun contenuto dinamico</h2>
+            <p class="text-secondary text-sm" style="margin:8px auto 16px;max-width:520px;">
+                Aggiungi una sezione per permettere al cliente di aggiornare in autonomia i contenuti del sito (menu, orari, FAQ, ecc.).
+            </p>
+            <button class="btn btn-primary" @click="showPicker=true">+ Aggiungi prima sezione</button>
+        </div>
+    </template>
+
+    <!-- Sections grid -->
+    <template x-if="!loading && sections.length > 0">
+        <div class="cms-grid">
+            <template x-for="(sec, idx) in sections" :key="sec.id">
+                <div class="cms-card">
+                    <h3>
+                        <span class="icon" x-text="kindMap[sec.kind] ? kindMap[sec.kind].icon : '📋'"></span>
+                        <span x-text="sec.label || (kindMap[sec.kind] ? kindMap[sec.kind].label : sec.kind)"></span>
+                    </h3>
+                    <div class="desc" x-text="kindMap[sec.kind] ? kindMap[sec.kind].description : ''"></div>
+                    <div class="meta">
+                        <span><span x-text="sec.item_count || 0"></span> elementi</span>
+                        <code class="mono" x-text="sec.key" style="opacity:.6;"></code>
+                    </div>
+                    <div class="cms-actions" style="margin-top:6px;">
+                        <a class="btn btn-primary btn-sm" :href="'/projects/{{ project.id }}/cms/sections/' + sec.id">Modifica</a>
+                        <button class="btn btn-sm" style="background:var(--border);" @click="moveUp(idx)" :disabled="idx===0">▲</button>
+                        <button class="btn btn-sm" style="background:var(--border);" @click="moveDown(idx)" :disabled="idx===sections.length-1">▼</button>
+                        <button class="btn btn-sm btn-danger" @click="removeSection(sec)">✕</button>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </template>
+
+    <!-- Picker modal -->
+    <template x-if="showPicker">
+        <div class="modal-back" @click.self="showPicker=false">
+            <div class="modal-card">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+                    <h2 style="margin:0;">Scegli un tipo di contenuto</h2>
+                    <button class="btn btn-sm" style="background:var(--border);" @click="showPicker=false">✕</button>
+                </div>
+                <p class="text-sm text-secondary" style="margin-bottom:14px;">
+                    Ogni tipo è già strutturato con i campi giusti per il cliente. Potrai poi aggiungere i singoli elementi.
+                </p>
+                <div class="picker-grid">
+                    <template x-for="k in kinds" :key="k.kind">
+                        <button class="picker-tile" @click="createSection(k.kind)" :disabled="creating">
+                            <div class="picker-icon" x-text="k.icon"></div>
+                            <div class="picker-label" x-text="k.label"></div>
+                            <div class="picker-desc" x-text="k.description"></div>
+                        </button>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Toast -->
+    <template x-if="toast">
+        <div class="toast" :class="toastType==='error' ? 'error' : ''" x-text="toast" @click="toast=''"></div>
+    </template>
+</div>
+
+<script>
+function cmsIndex() {
+    return {
+        loading: true,
+        publishing: false,
+        creating: false,
+        showPicker: false,
+        sections: [],
+        kinds: [],
+        kindMap: {},
+        toast: '',
+        toastType: 'info',
+        projectId: '{{ project.id }}',
+        async boot() {
+            await Promise.all([this.loadKinds(), this.loadSections()]);
+            this.loading = false;
+        },
+        async loadKinds() {
+            try {
+                var data = await this._call('GET', '/cms/kinds');
+                this.kinds = data;
+                this.kindMap = Object.fromEntries(data.map(function(k){ return [k.kind, k]; }));
+            } catch (e) { this._toast('Errore kinds: ' + e.message, 'error'); }
+        },
+        async loadSections() {
+            try {
+                this.sections = await this._call('GET', '/projects/' + this.projectId + '/cms/sections');
+            } catch (e) { this._toast('Errore sezioni: ' + e.message, 'error'); }
+        },
+        async createSection(kind) {
+            this.creating = true;
+            try {
+                await this._call('POST', '/projects/' + this.projectId + '/cms/sections', { kind: kind, seed_examples: true });
+                this.showPicker = false;
+                await this.loadSections();
+                this._toast('Sezione creata');
+            } catch (e) { this._toast('Errore: ' + e.message, 'error'); }
+            finally { this.creating = false; }
+        },
+        async removeSection(sec) {
+            if (!confirm('Eliminare la sezione "' + (sec.label || sec.kind) + '" e tutti i suoi contenuti?')) return;
+            try {
+                await this._call('DELETE', '/cms/sections/' + sec.id);
+                await this.loadSections();
+                this._toast('Sezione eliminata');
+            } catch (e) { this._toast('Errore: ' + e.message, 'error'); }
+        },
+        async moveUp(idx) { if (idx > 0) await this._reorder(idx, idx-1); },
+        async moveDown(idx) { if (idx < this.sections.length - 1) await this._reorder(idx, idx+1); },
+        async _reorder(from, to) {
+            var copy = this.sections.slice();
+            var [m] = copy.splice(from, 1); copy.splice(to, 0, m);
+            this.sections = copy;
+            try {
+                await this._call('POST', '/projects/' + this.projectId + '/cms/sections/reorder', { ids: copy.map(s => s.id) });
+            } catch (e) { this._toast('Errore reorder: ' + e.message, 'error'); await this.loadSections(); }
+        },
+        async publish() {
+            if (!confirm('Pubblicare le modifiche al sito? Verrà generata una nuova revisione live.')) return;
+            this.publishing = true;
+            try {
+                var r = await this._call('POST', '/projects/' + this.projectId + '/cms/publish', {});
+                this._toast('Pubblicato (rev #' + (r.revision_number || '—') + ')');
+            } catch (e) { this._toast('Errore publish: ' + e.message, 'error'); }
+            finally { this.publishing = false; }
+        },
+        _toast(msg, type) {
+            this.toast = msg; this.toastType = type || 'info';
+            setTimeout(() => { this.toast = ''; }, 4000);
+        },
+        async _call(method, path, body) {
+            var opts = { method: method, headers: {'Content-Type': 'application/json'} };
+            if (body !== undefined) opts.body = JSON.stringify(body);
+            var r = await fetch('/proxy/cms-api' + path, opts);
+            if (!r.ok) {
+                var t = await r.text();
+                try { var j = JSON.parse(t); t = j.detail || j.error || t; } catch (_) {}
+                throw new Error(t || ('HTTP ' + r.status));
+            }
+            return r.json();
+        },
+    };
+}
+</script>
+
+{% endblock %}

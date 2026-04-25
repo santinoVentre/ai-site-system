@@ -2,13 +2,22 @@
 
 import json
 import logging
+import re
 from uuid import UUID
 from slugify import slugify
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import attributes as orm_attributes
 
-from app.models import Project, ProjectRevision, Job, Artifact, ChangeRequest
+from app.cms import KIND_REGISTRY, get_kind, validate_item_data, validate_section_settings
+from app.models import (
+    Artifact,
+    ChangeRequest,
+    ContentItem,
+    ContentSection,
+    Job,
+    Project,
+    ProjectRevision,
+)
 from app.services.job_manager import transition_job, set_job_error
 from app.services.git_manager import (
     init_project_repo, commit_revision, copy_revision_for_preview, get_project_files,
@@ -104,50 +113,21 @@ async def run_create_website(db: AsyncSession, job_id: UUID) -> dict:
             await _save_artifact(db, job_id, None, "image_map", {"images": image_map})
             await db.commit()
 
-        # ---- Google Sheets setup (BEFORE build so the data URL is baked in) ----
-        dynamic_sections = project_spec.get("dynamic_sections", [])
-        sheets_enabled = job.config.get("sheets_enabled", False)
-        sheets_data_url: str | None = None
-
-        if sheets_enabled or dynamic_sections:
-            try:
-                from app.services import sheets_service
-                sheets_url = job.config.get("sheets_url")
-                client_email = (
-                    job.config.get("client_email") or job.config.get("sheets_client_email")
-                )
-                if sheets_url:
-                    sheets_info = await sheets_service.connect_spreadsheet(
-                        settings.google_sheets_credentials_path, sheets_url
-                    )
-                    logger.info(f"Connected existing sheet: {sheets_info['sheet_id']}")
-                else:
-                    sections_to_create = dynamic_sections or job.config.get("sheets_sections", [])
-                    sheets_info = await sheets_service.create_spreadsheet(
-                        credentials_path=settings.google_sheets_credentials_path,
-                        title=project_name,
-                        sections=sections_to_create,
-                        client_email=client_email,
-                    )
-                    logger.info(f"Created sheet: {sheets_info['sheet_id']}")
-
-                if not project.metadata_:
-                    project.metadata_ = {}
-                project.metadata_["sheets"] = {
-                    "connected": True,
-                    "sheet_id": sheets_info["sheet_id"],
-                    "sheet_url": sheets_info["sheet_url"],
-                    "sheet_title": sheets_info["sheet_title"],
-                    "sections": sheets_info["sections"],
-                    "client_email": sheets_info.get("client_email"),
-                }
-                orm_attributes.flag_modified(project, "metadata_")
-                sheets_data_url = (
-                    f"{settings.site_base_url}/api/projects/{slug}/sheets/data"
-                )
-                await db.commit()
-            except Exception as e:
-                logger.warning(f"Sheets setup failed (non-fatal): {e}")
+        # ---- CMS setup — auto-create dynamic sections from the planner spec ----
+        # The planner emits typed dynamic_sections (kind/key/label). We seed
+        # ContentSection rows here and assemble an in-memory cms_data payload
+        # so the very first build is prerendered server-side (great for SEO).
+        cms_data = await _seed_cms_sections(
+            db=db,
+            project=project,
+            dynamic_sections=project_spec.get("dynamic_sections") or [],
+            site_copy=site_copy,
+        )
+        cms_data_url = (
+            f"{settings.site_base_url}/api/projects/{slug}/cms/data"
+            if cms_data else None
+        )
+        await db.commit()
 
         # 5. Build — catalog-driven LayoutPlan + Jinja assembly
         job = await transition_job(db, job_id, "building", agent="builder")
@@ -159,7 +139,8 @@ async def run_create_website(db: AsyncSession, job_id: UUID) -> dict:
             design_tokens=design_tokens,
             image_urls=image_map,
             project_slug=slug,
-            sheets_data_url=sheets_data_url,
+            cms_data=cms_data,
+            cms_data_url=cms_data_url,
         )
         await _save_artifact(db, job_id, None, "build_manifest", build_manifest)
 
@@ -198,6 +179,8 @@ async def run_create_website(db: AsyncSession, job_id: UUID) -> dict:
             image_map=image_map,
             project_slug=slug,
             revision_number=1,
+            cms_data=cms_data,
+            cms_data_url=cms_data_url,
         )
         await _save_artifact(db, job_id, revision.id, "review_report", review)
 
@@ -325,3 +308,108 @@ async def _save_artifact(
     db.add(artifact)
     await db.flush()
     return artifact
+
+
+_CMS_KEY_RE = re.compile(r"[^a-z0-9]+")
+
+
+def _normalize_cms_key(raw: str, fallback: str) -> str:
+    base = _CMS_KEY_RE.sub("-", (raw or "").lower()).strip("-")
+    return base or fallback
+
+
+async def _seed_cms_sections(
+    *,
+    db: AsyncSession,
+    project: Project,
+    dynamic_sections: list[dict],
+    site_copy: dict,
+) -> dict[str, dict]:
+    """Create ContentSection rows from the planner spec and return a payload
+    ready to be passed to `assemble_site(cms_data=...)`.
+
+    Each entry in `dynamic_sections` is expected in the new typed shape:
+        {"kind": "menu", "key": "menu", "label": "Menu", "seed_examples": true}
+
+    Examples are taken from the kind registry. If `site_copy` carries
+    section-specific copy (eyebrow / headline / subheadline) we attach it as the
+    section settings so the prerendered HTML already has good titles before the
+    customer touches the CMS.
+    """
+    if not dynamic_sections:
+        return {}
+
+    payload: dict[str, dict] = {}
+    used_keys: set[str] = set()
+
+    copy_sections = (site_copy.get("sections") if isinstance(site_copy, dict) else None) or {}
+
+    for idx, raw in enumerate(dynamic_sections):
+        if not isinstance(raw, dict):
+            continue
+        kind = (raw.get("kind") or "").strip().lower()
+        if kind not in KIND_REGISTRY:
+            logger.info("Skipping dynamic section with unknown kind: %r", kind)
+            continue
+
+        spec = get_kind(kind)
+        candidate_key = _normalize_cms_key(raw.get("key") or raw.get("name") or kind, kind)
+        key = candidate_key
+        n = 2
+        while key in used_keys:
+            key = f"{candidate_key}-{n}"
+            n += 1
+        used_keys.add(key)
+
+        label = (raw.get("label") or spec["default_label"]).strip()
+
+        # Pull section-level copy from site_copy if present, then validate.
+        section_copy = copy_sections.get(key) or copy_sections.get(kind) or {}
+        settings_seed = {
+            k: section_copy.get(k) for k in ("eyebrow", "headline", "subheadline")
+            if section_copy.get(k)
+        }
+        try:
+            settings = validate_section_settings(kind, settings_seed)
+        except Exception:
+            settings = {}
+
+        section = ContentSection(
+            project_id=project.id,
+            kind=kind,
+            key=key,
+            label=label,
+            settings=settings,
+            position=idx + 1,
+        )
+        db.add(section)
+        await db.flush()
+
+        items_payload: list[dict] = []
+        if raw.get("seed_examples", True):
+            for i, example in enumerate(spec.get("examples") or []):
+                try:
+                    cleaned = validate_item_data(kind, example)
+                except ValueError:
+                    continue
+                db.add(ContentItem(
+                    section_id=section.id,
+                    position=i + 1,
+                    data=cleaned,
+                ))
+                items_payload.append(cleaned)
+            if items_payload:
+                await db.flush()
+
+        payload[key] = {
+            "kind": kind,
+            "label": label,
+            "settings": settings,
+            "items": items_payload,
+        }
+        logger.info(
+            "Seeded CMS section project=%s kind=%s key=%s items=%d",
+            project.slug, kind, key, len(items_payload),
+        )
+
+    return payload

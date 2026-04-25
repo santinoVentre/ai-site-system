@@ -1,6 +1,8 @@
-{# Dynamic hours (from Sheets) #}
+{# Dynamic opening hours — prerendered + hydrated #}
+{% set cms_key = section.cms_key|default(section.id|default('hours')) %}
+{% set items = section.cms_items|default([]) %}
 <section id="{{ section.id|default('hours') }}" class="py-20 lg:py-24 bg-white"
-         data-sheet-section="{{ section.sheet_key|default('hours') }}" data-sheet-kind="hours">
+         data-cms-section="{{ cms_key }}" data-cms-kind="hours">
   <div class="max-w-3xl mx-auto px-6 lg:px-8">
     <div class="text-center reveal mb-10">
       {% if section.eyebrow %}<p class="text-sm font-semibold uppercase tracking-wide text-brand-700">{{ section.eyebrow }}</p>{% endif %}
@@ -8,8 +10,24 @@
       {% if section.subheadline %}<p class="mt-4 text-lg text-slate-600">{{ section.subheadline }}</p>{% endif %}
     </div>
     <div class="reveal bg-surface rounded-2xl p-6 lg:p-8 ring-1 ring-slate-200/70">
-      <div data-sheet-mount>
-        <p class="text-slate-500 text-sm">Caricamento orari…</p>
+      <div data-cms-mount>
+        {% if items %}
+          <table class="w-full text-left border-collapse">
+            {% for it in items %}
+              <tr class="border-b border-slate-200">
+                <th scope="row" class="py-3 pr-4 font-medium text-ink">{{ it.day|default('') }}</th>
+                <td class="py-3 text-slate-600">
+                  {%- if it.note -%}{{ it.note }}
+                  {%- elif it.open and it.close -%}{{ it.open }} – {{ it.close }}
+                  {%- elif it.open or it.close -%}{{ it.open or it.close }}
+                  {%- else -%}Chiuso{%- endif -%}
+                </td>
+              </tr>
+            {% endfor %}
+          </table>
+        {% else %}
+          <p class="text-slate-500 text-sm">Caricamento orari…</p>
+        {% endif %}
       </div>
     </div>
   </div>

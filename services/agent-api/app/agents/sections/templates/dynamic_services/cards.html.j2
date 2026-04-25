@@ -1,0 +1,29 @@
+{# Dynamic services — prerendered + hydrated #}
+{% set cms_key = section.cms_key|default(section.id|default('services')) %}
+{% set items = section.cms_items|default([]) %}
+<section id="{{ section.id|default('services') }}" class="py-20 lg:py-24 bg-white"
+         data-cms-section="{{ cms_key }}" data-cms-kind="services">
+  <div class="max-w-content mx-auto px-6 lg:px-8">
+    <div class="text-center max-w-2xl mx-auto reveal mb-12">
+      {% if section.eyebrow %}<p class="text-sm font-semibold uppercase tracking-wide text-brand-700">{{ section.eyebrow }}</p>{% endif %}
+      <h2 class="mt-2 font-display text-3xl md:text-4xl font-bold tracking-tight">{{ section.headline|default('I nostri servizi') }}</h2>
+      {% if section.subheadline %}<p class="mt-4 text-lg text-slate-600">{{ section.subheadline }}</p>{% endif %}
+    </div>
+    <div class="reveal">
+      <div data-cms-mount class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% if items %}
+          {% for it in items %}
+            <article class="bg-surface rounded-2xl p-6 ring-1 ring-slate-200/70 flex flex-col {% if it.highlight %}ring-2 ring-brand-500{% endif %}">
+              {% if it.image %}<img src="{{ it.image }}" alt="{{ it.name|default('') }}" loading="lazy" class="w-full h-44 rounded-xl object-cover mb-4">{% endif %}
+              <h3 class="font-semibold text-ink text-lg">{{ it.name|default('') }}</h3>
+              {% if it.description %}<p class="mt-2 text-sm text-slate-600 leading-relaxed flex-1">{{ it.description }}</p>{% endif %}
+              {% if it.price not in (None, '') %}<div class="mt-4 text-brand-700 font-semibold">{{ it.price }}{% if it.price is number or (it.price|string).replace('.','',1).isdigit() %} €{% endif %}</div>{% endif %}
+            </article>
+          {% endfor %}
+        {% else %}
+          <p class="text-slate-500 text-sm text-center col-span-full">Caricamento servizi…</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,39 @@
+{# Dynamic testimonials — prerendered + hydrated #}
+{% set cms_key = section.cms_key|default(section.id|default('testimonials')) %}
+{% set items = section.cms_items|default([]) %}
+<section id="{{ section.id|default('testimonials') }}" class="py-20 lg:py-24 bg-surface"
+         data-cms-section="{{ cms_key }}" data-cms-kind="testimonials">
+  <div class="max-w-content mx-auto px-6 lg:px-8">
+    <div class="text-center max-w-2xl mx-auto reveal mb-12">
+      {% if section.eyebrow %}<p class="text-sm font-semibold uppercase tracking-wide text-brand-700">{{ section.eyebrow }}</p>{% endif %}
+      <h2 class="mt-2 font-display text-3xl md:text-4xl font-bold tracking-tight">{{ section.headline|default('Cosa dicono di noi') }}</h2>
+      {% if section.subheadline %}<p class="mt-4 text-lg text-slate-600">{{ section.subheadline }}</p>{% endif %}
+    </div>
+    <div class="reveal">
+      <div data-cms-mount class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% if items %}
+          {% for it in items %}
+            <article class="bg-white rounded-2xl p-6 ring-1 ring-slate-200/70 flex flex-col">
+              {% if it.rating %}
+                <div class="text-amber-500 mb-3" aria-label="Valutazione {{ it.rating }} su 5">
+                  {% set r = (it.rating|int) if it.rating is number or (it.rating|string).isdigit() else 5 %}
+                  {% for _ in range(r) %}★{% endfor %}{% for _ in range(5 - r) %}<span class="text-slate-300">★</span>{% endfor %}
+                </div>
+              {% endif %}
+              {% if it.text %}<blockquote class="text-slate-700 leading-relaxed flex-1">“{{ it.text }}”</blockquote>{% endif %}
+              <footer class="mt-5 flex items-center gap-3">
+                {% if it.image %}<img src="{{ it.image }}" alt="{{ it.name|default('') }}" loading="lazy" class="w-10 h-10 rounded-full object-cover">{% endif %}
+                <div>
+                  <div class="font-medium text-ink">{{ it.name|default('') }}</div>
+                  {% if it.role %}<div class="text-xs text-slate-500">{{ it.role }}</div>{% endif %}
+                </div>
+              </footer>
+            </article>
+          {% endfor %}
+        {% else %}
+          <p class="text-slate-500 text-sm text-center col-span-full">Caricamento testimonianze…</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>

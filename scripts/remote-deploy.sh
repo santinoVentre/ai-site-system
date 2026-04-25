@@ -53,7 +53,8 @@ append_if_missing "RATE_LIMIT_DEFAULT" "60/minute"
 append_if_missing "RATE_LIMIT_PUBLIC" "60/minute"
 DOMAIN_VAL=$(grep -E '^DOMAIN=' .env | head -1 | cut -d= -f2- | tr -d '"' | tr -d "'" | tr -d ' ')
 append_if_missing "SITE_BASE_URL" "https://${DOMAIN_VAL:-localhost}"
-append_if_missing "GOOGLE_DRIVE_FOLDER_ID" ""
+append_if_missing "CMS_ASSETS_PATH" "/data/cms-assets"
+append_if_missing "MAX_UPLOAD_SIZE" "10485760"
 append_if_missing "CORS_ALLOWED_ORIGINS" "https://${DOMAIN_VAL:-localhost}"
 
 echo

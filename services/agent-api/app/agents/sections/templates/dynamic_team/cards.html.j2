@@ -1,6 +1,8 @@
-{# Dynamic team section from Sheets #}
+{# Dynamic team — prerendered + hydrated #}
+{% set cms_key = section.cms_key|default(section.id|default('team')) %}
+{% set items = section.cms_items|default([]) %}
 <section id="{{ section.id|default('team') }}" class="py-20 lg:py-24 bg-surface"
-         data-sheet-section="{{ section.sheet_key|default('team') }}" data-sheet-kind="team">
+         data-cms-section="{{ cms_key }}" data-cms-kind="team">
   <div class="max-w-content mx-auto px-6 lg:px-8">
     <div class="text-center max-w-2xl mx-auto reveal mb-12">
       {% if section.eyebrow %}<p class="text-sm font-semibold uppercase tracking-wide text-brand-700">{{ section.eyebrow }}</p>{% endif %}
@@ -8,8 +10,19 @@
       {% if section.subheadline %}<p class="mt-4 text-lg text-slate-600">{{ section.subheadline }}</p>{% endif %}
     </div>
     <div class="reveal">
-      <div data-sheet-mount>
-        <p class="text-slate-500 text-sm text-center">Caricamento team…</p>
+      <div data-cms-mount class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% if items %}
+          {% for it in items %}
+            <article class="bg-white rounded-2xl p-6 ring-1 ring-slate-200/70 text-center">
+              {% if it.image %}<img src="{{ it.image }}" alt="{{ it.name|default('') }}" loading="lazy" class="mx-auto w-24 h-24 rounded-full object-cover mb-4">{% endif %}
+              <h3 class="font-semibold text-ink">{{ it.name|default('') }}</h3>
+              {% if it.role %}<p class="text-sm text-brand-700 mt-1">{{ it.role }}</p>{% endif %}
+              {% if it.bio %}<p class="text-sm text-slate-600 mt-3 leading-relaxed">{{ it.bio }}</p>{% endif %}
+            </article>
+          {% endfor %}
+        {% else %}
+          <p class="text-slate-500 text-sm text-center col-span-full">Caricamento team…</p>
+        {% endif %}
       </div>
     </div>
   </div>

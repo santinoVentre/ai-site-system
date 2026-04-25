@@ -124,115 +124,249 @@
     });
   </script>
 
-  {% if sheets_data_url %}
+  {% if cms_data_url %}
   <script>
-    window.SHEETS_DATA_URL = {{ sheets_data_url | tojson }};
+    window.CMS_DATA_URL = {{ cms_data_url | tojson }};
     document.addEventListener('DOMContentLoaded', async function () {
-      if (!window.SHEETS_DATA_URL) return;
+      if (!window.CMS_DATA_URL) return;
       try {
-        var resp = await fetch(window.SHEETS_DATA_URL, { cache: 'no-store' });
+        var resp = await fetch(window.CMS_DATA_URL, { cache: 'no-store' });
         if (!resp.ok) return;
         var data = await resp.json();
-        document.querySelectorAll('[data-sheet-section]').forEach(function (container) {
-          var key = container.getAttribute('data-sheet-section');
-          var rows = data[key];
-          if (!Array.isArray(rows) || !rows.length) return;
-          var kind = container.getAttribute('data-sheet-kind') || 'generic';
-          renderSheetSection(container, kind, rows);
+        document.querySelectorAll('[data-cms-section]').forEach(function (container) {
+          var key = container.getAttribute('data-cms-section');
+          var block = data[key];
+          if (!block) return;
+          var items = Array.isArray(block) ? block : (block.items || []);
+          if (!items.length) return;
+          var kind = container.getAttribute('data-cms-kind') || 'generic';
+          renderCmsSection(container, kind, items);
         });
-      } catch (e) { console.warn('Sheets load failed:', e); }
+      } catch (e) { console.warn('CMS load failed:', e); }
     });
 
-    function renderSheetSection(container, kind, rows) {
-      var mount = container.querySelector('[data-sheet-mount]') || container;
+    function _esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>\"']/g, function (c) {
+        return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+      });
+    }
+    function _val(o, key) {
+      if (!o) return '';
+      var v = o[key];
+      if (v != null) return v;
+      var titled = key.charAt(0).toUpperCase() + key.slice(1);
+      return o[titled] != null ? o[titled] : '';
+    }
+    function _price(p) {
+      if (p == null || p === '') return '';
+      if (typeof p === 'number') {
+        return p.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+      }
+      var num = parseFloat(String(p).replace(',', '.'));
+      if (!isNaN(num)) {
+        return num.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+      }
+      return _esc(p);
+    }
+
+    function renderCmsSection(container, kind, items) {
+      var mount = container.querySelector('[data-cms-mount]') || container;
       mount.innerHTML = '';
-      if (kind === 'hours') {
+      if (kind === 'menu') {
+        var groups = {};
+        items.forEach(function (r) {
+          var cat = _val(r, 'category') || 'Menu';
+          (groups[cat] = groups[cat] || []).push(r);
+        });
+        Object.keys(groups).forEach(function (cat) {
+          var h = document.createElement('h3');
+          h.className = 'mt-8 mb-3 text-lg font-semibold text-ink';
+          h.textContent = cat;
+          mount.appendChild(h);
+          var list = document.createElement('div');
+          list.className = 'divide-y divide-slate-200';
+          groups[cat].forEach(function (r) {
+            var img = _val(r, 'image');
+            var row = document.createElement('div');
+            row.className = 'flex items-start justify-between py-4 gap-6';
+            row.innerHTML =
+              (img ? '<img src="' + _esc(img) + '" alt="' + _esc(_val(r,'name')) + '" class="w-20 h-20 rounded-xl object-cover shrink-0" loading="lazy" />' : '') +
+              '<div class="flex-1"><div class="font-medium">' + _esc(_val(r,'name')) + '</div>' +
+              '<div class="text-sm text-slate-500 mt-1">' + _esc(_val(r,'description')) + '</div></div>' +
+              '<div class="shrink-0 font-semibold text-brand-700">' + _price(_val(r,'price')) + '</div>';
+            list.appendChild(row);
+          });
+          mount.appendChild(list);
+        });
+      } else if (kind === 'hours') {
         var tbl = document.createElement('table');
         tbl.className = 'w-full text-left border-collapse';
-        rows.forEach(function (r) {
+        items.forEach(function (r) {
+          var open = _val(r, 'open'), close = _val(r, 'close'), note = _val(r, 'note');
           var tr = document.createElement('tr');
           tr.className = 'border-b border-slate-200';
-          var keys = Object.keys(r);
-          tr.innerHTML = '<th scope="row" class="py-3 pr-4 font-medium text-ink">' + (r[keys[0]] || '') + '</th>' +
-                         '<td class="py-3">' + keys.slice(1).map(function (k) { return '<span class="mr-3">' + (r[k] || '') + '</span>'; }).join('') + '</td>';
+          var when = note ? _esc(note) : (open && close ? _esc(open) + ' – ' + _esc(close) : (open || close ? _esc(open || close) : 'Chiuso'));
+          tr.innerHTML = '<th scope="row" class="py-3 pr-4 font-medium text-ink">' + _esc(_val(r,'day')) + '</th>' +
+                         '<td class="py-3 text-slate-600">' + when + '</td>';
           tbl.appendChild(tr);
         });
         mount.appendChild(tbl);
       } else if (kind === 'faq') {
-        rows.forEach(function (r) {
+        items.forEach(function (r) {
           var d = document.createElement('details');
           d.className = 'group py-4 border-b border-slate-200';
-          var s = document.createElement('summary');
-          s.className = 'cursor-pointer font-medium flex items-center justify-between';
-          s.textContent = (r.Domanda || r.Question || Object.values(r)[0] || '');
-          var p = document.createElement('div');
-          p.className = 'mt-2 text-slate-600';
-          p.textContent = (r.Risposta || r.Answer || Object.values(r)[1] || '');
-          d.appendChild(s); d.appendChild(p);
+          d.innerHTML =
+            '<summary class="cursor-pointer font-medium flex items-center justify-between text-ink">' +
+            '<span>' + _esc(_val(r,'question')) + '</span>' +
+            '<span class="ml-2 transition group-open:rotate-180" aria-hidden="true">⌄</span>' +
+            '</summary>' +
+            '<div class="mt-3 text-slate-600 whitespace-pre-line">' + _esc(_val(r,'answer')) + '</div>';
           mount.appendChild(d);
         });
       } else if (kind === 'gallery') {
         var g = document.createElement('div');
         g.className = 'grid grid-cols-2 md:grid-cols-3 gap-4';
-        rows.forEach(function (r) {
-          var url = r.Foto_URL || r.Photo_URL || r.URL || '';
+        items.forEach(function (r) {
+          var url = _val(r,'image');
           if (!url) return;
           var fig = document.createElement('figure');
-          fig.className = 'aspect-square overflow-hidden rounded-xl';
-          fig.innerHTML = '<img src="' + url + '" alt="' + (r.Titolo || r.Title || '') + '" class="w-full h-full object-cover" loading="lazy" />';
+          fig.className = 'aspect-square overflow-hidden rounded-xl bg-surface';
+          fig.innerHTML = '<img src="' + _esc(url) + '" alt="' + _esc(_val(r,'title')) + '" class="w-full h-full object-cover" loading="lazy" />';
           g.appendChild(fig);
         });
         mount.appendChild(g);
       } else if (kind === 'team') {
         var grid = document.createElement('div');
-        grid.className = 'grid grid-cols-1 md:grid-cols-3 gap-6';
-        rows.forEach(function (r) {
+        grid.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6';
+        items.forEach(function (r) {
+          var img = _val(r,'image');
           var c = document.createElement('article');
-          c.className = 'bg-surface rounded-2xl p-6 text-center shadow-sm';
-          var img = r.Foto_URL || r.Photo || '';
+          c.className = 'bg-surface rounded-2xl p-6 text-center shadow-sm ring-1 ring-slate-200/70';
           c.innerHTML =
-            (img ? '<img src="' + img + '" alt="' + (r.Nome || '') + '" class="w-24 h-24 rounded-full object-cover mx-auto mb-4" loading="lazy" />' : '') +
-            '<h3 class="font-semibold">' + (r.Nome || r.Name || '') + '</h3>' +
-            '<p class="text-sm text-slate-500">' + (r.Ruolo || r.Role || '') + '</p>' +
-            (r.Bio ? '<p class="mt-3 text-sm text-slate-600">' + r.Bio + '</p>' : '');
+            (img ? '<img src="' + _esc(img) + '" alt="' + _esc(_val(r,'name')) + '" class="w-24 h-24 rounded-full object-cover mx-auto mb-4" loading="lazy" />' : '') +
+            '<h3 class="font-semibold text-ink">' + _esc(_val(r,'name')) + '</h3>' +
+            '<p class="text-sm text-brand-700">' + _esc(_val(r,'role')) + '</p>' +
+            (_val(r,'bio') ? '<p class="mt-3 text-sm text-slate-600">' + _esc(_val(r,'bio')) + '</p>' : '');
           grid.appendChild(c);
         });
         mount.appendChild(grid);
-      } else if (kind === 'menu') {
-        var categories = {};
-        rows.forEach(function (r) {
-          var cat = r.Categoria || r.Category || 'Menu';
-          (categories[cat] = categories[cat] || []).push(r);
+      } else if (kind === 'testimonials') {
+        var grid2 = document.createElement('div');
+        grid2.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6';
+        items.forEach(function (r) {
+          var img = _val(r,'image');
+          var rating = parseInt(_val(r,'rating'), 10) || 0;
+          var stars = '★★★★★'.slice(0, rating).padEnd(5, '☆');
+          var c = document.createElement('article');
+          c.className = 'bg-white rounded-2xl p-6 ring-1 ring-slate-200 shadow-sm';
+          c.innerHTML =
+            (rating ? '<div class="text-amber-500 text-lg mb-3">' + stars + '</div>' : '') +
+            '<p class="text-slate-700 italic">"' + _esc(_val(r,'text')) + '"</p>' +
+            '<div class="mt-4 flex items-center gap-3">' +
+              (img ? '<img src="' + _esc(img) + '" alt="' + _esc(_val(r,'name')) + '" class="w-10 h-10 rounded-full object-cover" loading="lazy" />' : '') +
+              '<div><div class="font-medium text-ink">' + _esc(_val(r,'name')) + '</div>' +
+              '<div class="text-xs text-slate-500">' + _esc(_val(r,'role')) + '</div></div>' +
+            '</div>';
+          grid2.appendChild(c);
         });
-        Object.keys(categories).forEach(function (cat) {
-          var h = document.createElement('h3');
-          h.className = 'mt-6 mb-3 text-lg font-semibold';
-          h.textContent = cat;
-          mount.appendChild(h);
-          var list = document.createElement('div');
-          list.className = 'divide-y divide-slate-200';
-          categories[cat].forEach(function (r) {
-            var row = document.createElement('div');
-            row.className = 'flex items-start justify-between py-3 gap-6';
-            row.innerHTML =
-              '<div><div class="font-medium">' + (r.Nome || r.Name || '') + '</div>' +
-              '<div class="text-sm text-slate-500">' + (r.Descrizione || r.Description || '') + '</div></div>' +
-              '<div class="shrink-0 font-semibold text-brand-700">' + (r.Prezzo || r.Price || '') + '</div>';
-            list.appendChild(row);
-          });
-          mount.appendChild(list);
+        mount.appendChild(grid2);
+      } else if (kind === 'services') {
+        var grid3 = document.createElement('div');
+        grid3.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6';
+        items.forEach(function (r) {
+          var img = _val(r,'image');
+          var hl = _val(r,'highlight');
+          var c = document.createElement('article');
+          c.className = 'rounded-2xl p-6 ring-1 ring-slate-200 ' + (hl ? 'bg-brand-50 ring-brand-200' : 'bg-white');
+          c.innerHTML =
+            (img ? '<img src="' + _esc(img) + '" alt="" class="w-full h-40 object-cover rounded-xl mb-4" loading="lazy" />' : '') +
+            '<h3 class="font-semibold text-ink">' + _esc(_val(r,'name')) + '</h3>' +
+            '<p class="mt-2 text-sm text-slate-600">' + _esc(_val(r,'description')) + '</p>' +
+            (_val(r,'price') !== '' ? '<div class="mt-4 font-semibold text-brand-700">' + _price(_val(r,'price')) + '</div>' : '');
+          grid3.appendChild(c);
         });
+        mount.appendChild(grid3);
+      } else if (kind === 'pricing') {
+        var grid4 = document.createElement('div');
+        grid4.className = 'grid grid-cols-1 md:grid-cols-3 gap-6';
+        items.forEach(function (r) {
+          var hl = _val(r,'highlight');
+          var feats = _val(r, 'features');
+          if (!Array.isArray(feats)) feats = String(feats || '').split('\n').filter(Boolean);
+          var c = document.createElement('article');
+          c.className = 'rounded-2xl p-6 ring-1 ' + (hl ? 'ring-brand-500 bg-brand-50 shadow-md' : 'ring-slate-200 bg-white');
+          c.innerHTML =
+            '<h3 class="font-semibold text-ink">' + _esc(_val(r,'name')) + '</h3>' +
+            '<div class="mt-3 flex items-baseline gap-1"><span class="text-3xl font-bold">' + _price(_val(r,'price')) + '</span><span class="text-slate-500 text-sm">' + _esc(_val(r,'period')) + '</span></div>' +
+            '<ul class="mt-5 space-y-2 text-sm text-slate-700">' +
+              feats.map(function (f) { return '<li class="flex items-start gap-2"><span class="text-brand-600">✓</span><span>' + _esc(f) + '</span></li>'; }).join('') +
+            '</ul>' +
+            (_val(r,'cta_label') ? '<a href="' + _esc(_val(r,'cta_href') || '#contact') + '" class="mt-6 inline-flex items-center rounded-xl ' + (hl ? 'bg-brand-600 text-white' : 'bg-white ring-1 ring-slate-300 text-ink') + ' font-semibold px-4 py-2">' + _esc(_val(r,'cta_label')) + '</a>' : '');
+          grid4.appendChild(c);
+        });
+        mount.appendChild(grid4);
+      } else if (kind === 'products') {
+        var grid5 = document.createElement('div');
+        grid5.className = 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6';
+        items.forEach(function (r) {
+          var img = _val(r,'image');
+          var stock = _val(r,'in_stock');
+          var c = document.createElement('article');
+          c.className = 'bg-white rounded-2xl ring-1 ring-slate-200 overflow-hidden';
+          c.innerHTML =
+            (img ? '<img src="' + _esc(img) + '" alt="' + _esc(_val(r,'name')) + '" class="w-full aspect-square object-cover" loading="lazy" />' : '') +
+            '<div class="p-4"><div class="text-xs text-slate-500 uppercase tracking-wide">' + _esc(_val(r,'category')) + '</div>' +
+            '<h3 class="font-semibold mt-1">' + _esc(_val(r,'name')) + '</h3>' +
+            '<div class="mt-2 flex items-center justify-between"><span class="font-semibold text-brand-700">' + _price(_val(r,'price')) + '</span>' +
+            (stock === false ? '<span class="text-xs text-slate-500">Esaurito</span>' : '') + '</div></div>';
+          grid5.appendChild(c);
+        });
+        mount.appendChild(grid5);
+      } else if (kind === 'events') {
+        var list2 = document.createElement('div');
+        list2.className = 'grid grid-cols-1 md:grid-cols-2 gap-6';
+        items.forEach(function (r) {
+          var img = _val(r,'image'), link = _val(r,'link');
+          var c = document.createElement('article');
+          c.className = 'bg-white rounded-2xl ring-1 ring-slate-200 overflow-hidden flex flex-col';
+          c.innerHTML =
+            (img ? '<img src="' + _esc(img) + '" alt="" class="w-full h-48 object-cover" loading="lazy" />' : '') +
+            '<div class="p-5 flex-1"><div class="text-xs text-brand-700 font-semibold uppercase">' + _esc(_val(r,'date')) + (_val(r,'time') ? ' · ' + _esc(_val(r,'time')) : '') + '</div>' +
+            '<h3 class="mt-1 font-semibold text-ink">' + _esc(_val(r,'title')) + '</h3>' +
+            (_val(r,'location') ? '<div class="text-sm text-slate-500 mt-1">' + _esc(_val(r,'location')) + '</div>' : '') +
+            '<p class="mt-3 text-sm text-slate-600">' + _esc(_val(r,'description')) + '</p>' +
+            (link ? '<a href="' + _esc(link) + '" class="mt-4 inline-flex items-center rounded-xl bg-brand-600 text-white font-semibold px-4 py-2 text-sm">Prenota</a>' : '') +
+            '</div>';
+          list2.appendChild(c);
+        });
+        mount.appendChild(list2);
+      } else if (kind === 'contact_info') {
+        var list3 = document.createElement('ul');
+        list3.className = 'grid grid-cols-1 sm:grid-cols-2 gap-4';
+        items.forEach(function (r) {
+          var link = _val(r,'link');
+          var li = document.createElement('li');
+          li.className = 'bg-white rounded-xl ring-1 ring-slate-200 p-4 flex items-start gap-3';
+          var inner =
+            '<div class="text-sm text-slate-500">' + _esc(_val(r,'label')) + '</div>' +
+            '<div class="font-medium text-ink mt-0.5">' + _esc(_val(r,'value')) + '</div>';
+          li.innerHTML = link
+            ? '<a href="' + _esc(link) + '" class="block">' + inner + '</a>'
+            : inner;
+          list3.appendChild(li);
+        });
+        mount.appendChild(list3);
       } else {
+        var keys = Object.keys(items[0] || {}).filter(function (k) { return k !== 'image'; });
         var tbl2 = document.createElement('table');
         tbl2.className = 'w-full text-left border-collapse';
-        var headers = Object.keys(rows[0] || {});
         var thead = document.createElement('thead');
-        thead.innerHTML = '<tr class="border-b border-slate-200">' + headers.map(function (h) { return '<th class="py-2 pr-4 font-semibold">' + h + '</th>'; }).join('') + '</tr>';
+        thead.innerHTML = '<tr class="border-b border-slate-200">' + keys.map(function (h) { return '<th class="py-2 pr-4 font-semibold capitalize">' + _esc(h) + '</th>'; }).join('') + '</tr>';
         var tbody = document.createElement('tbody');
-        rows.forEach(function (r) {
+        items.forEach(function (r) {
           var tr = document.createElement('tr');
           tr.className = 'border-b border-slate-100';
-          tr.innerHTML = headers.map(function (h) { return '<td class="py-2 pr-4">' + (r[h] || '') + '</td>'; }).join('');
+          tr.innerHTML = keys.map(function (k) { return '<td class="py-2 pr-4">' + _esc(_val(r,k)) + '</td>'; }).join('');
           tbody.appendChild(tr);
         });
         tbl2.appendChild(thead); tbl2.appendChild(tbody);

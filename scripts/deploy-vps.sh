@@ -44,7 +44,8 @@ append_if_missing "LOG_JSON" "true"
 append_if_missing "RATE_LIMIT_DEFAULT" "60/minute"
 append_if_missing "RATE_LIMIT_PUBLIC" "60/minute"
 append_if_missing "SITE_BASE_URL" "https://${DOMAIN:-localhost}"
-append_if_missing "GOOGLE_DRIVE_FOLDER_ID" ""
+append_if_missing "CMS_ASSETS_PATH" "/data/cms-assets"
+append_if_missing "MAX_UPLOAD_SIZE" "10485760"
 
 echo "==> 3/6 Building changed service images"
 docker compose build --pull agent-api admin-web qa-runner telegram-bot

@@ -24,14 +24,16 @@ class Settings(BaseSettings):
     # Paths
     generated_sites_path: str = "/data/generated-sites"
     artifacts_path: str = "/data/artifacts"
+    cms_assets_path: str = "/data/cms-assets"
 
     # URLs
     preview_base_url: str = "http://localhost/preview"
     site_base_url: str = "https://agent.santinoventre.com"
+    cms_assets_url_prefix: str = "/cms-assets"
 
-    # Google Sheets
-    google_sheets_credentials_path: str = "/secrets/gsheets-credentials.json"
-    google_drive_folder_id: str = ""
+    # CMS upload constraints
+    cms_max_upload_bytes: int = 8 * 1024 * 1024
+    cms_image_max_dimension: int = 2400
 
     # Images
     unsplash_access_key: str = ""

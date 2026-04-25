@@ -1,0 +1,36 @@
+{# Dynamic contact info — prerendered + hydrated #}
+{% set cms_key = section.cms_key|default(section.id|default('contact_info')) %}
+{% set items = section.cms_items|default([]) %}
+{% set _icons = {
+  'phone': '📞', 'email': '✉️', 'location': '📍', 'clock': '🕒',
+  'instagram': '📸', 'facebook': '📘', 'whatsapp': '💬', 'globe': '🌐',
+} %}
+<section id="{{ section.id|default('contact-info') }}" class="py-20 lg:py-24 bg-white"
+         data-cms-section="{{ cms_key }}" data-cms-kind="contact_info">
+  <div class="max-w-3xl mx-auto px-6 lg:px-8">
+    <div class="text-center reveal mb-10">
+      {% if section.eyebrow %}<p class="text-sm font-semibold uppercase tracking-wide text-brand-700">{{ section.eyebrow }}</p>{% endif %}
+      <h2 class="mt-2 font-display text-3xl md:text-4xl font-bold tracking-tight">{{ section.headline|default('Contatti') }}</h2>
+      {% if section.subheadline %}<p class="mt-4 text-lg text-slate-600">{{ section.subheadline }}</p>{% endif %}
+    </div>
+    <div class="reveal bg-surface rounded-2xl p-6 lg:p-8 ring-1 ring-slate-200/70">
+      <ul data-cms-mount class="divide-y divide-slate-200">
+        {% if items %}
+          {% for it in items %}
+            <li class="flex items-center gap-4 py-3">
+              <span class="w-9 h-9 rounded-xl bg-brand-50 text-brand-700 flex items-center justify-center text-lg shrink-0" aria-hidden="true">{{ _icons.get(it.icon, '•') }}</span>
+              <div class="flex-1 min-w-0">
+                <div class="text-xs uppercase tracking-wide text-slate-500">{{ it.label|default('') }}</div>
+                <div class="text-ink truncate">
+                  {% if it.link %}<a class="hover:text-brand-700" href="{{ it.link }}">{{ it.value|default('') }}</a>{% else %}{{ it.value|default('') }}{% endif %}
+                </div>
+              </div>
+            </li>
+          {% endfor %}
+        {% else %}
+          <li class="py-3 text-slate-500 text-sm">Caricamento…</li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+</section>

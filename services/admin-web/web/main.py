@@ -5,7 +5,7 @@ import secrets
 import urllib.parse
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Depends, Form, HTTPException, UploadFile, File
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from typing import List
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
@@ -155,12 +155,14 @@ async def project_detail(request: Request, project_id: str):
     except Exception as e:
         raise HTTPException(status_code=404, detail="Project not found")
 
+    cms_sections: list = []
     try:
-        sheets_status = await api_request("GET", f"/projects/{project_id}/sheets/status")
+        cms_sections = await api_request("GET", f"/projects/{project_id}/cms/sections")
+        if not isinstance(cms_sections, list):
+            cms_sections = []
     except Exception:
-        sheets_status = {"connected": False}
+        cms_sections = []
 
-    # Fetch QA reports for the current revision
     qa_reports: list[dict] = []
     current_rev_id = project.get("current_revision_id") if isinstance(project, dict) else None
     if current_rev_id:
@@ -175,12 +177,37 @@ async def project_detail(request: Request, project_id: str):
         "request": request,
         "project": project,
         "revisions": revisions if isinstance(revisions, list) else [],
-        "sheets_status": sheets_status,
+        "cms_sections": cms_sections,
         "qa_reports": qa_reports,
         "error": request.query_params.get("error", ""),
         "flash": request.query_params.get("flash", ""),
-        "sheets_error": request.query_params.get("sheets_error", ""),
-        "sheets_ok": request.query_params.get("sheets", ""),
+    })
+
+
+@app.get("/projects/{project_id}/cms", response_class=HTMLResponse)
+async def cms_index(request: Request, project_id: str):
+    require_login(request)
+    try:
+        project = await api_request("GET", f"/projects/{project_id}")
+    except Exception:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return templates.TemplateResponse("cms_index.html", {
+        "request": request,
+        "project": project,
+    })
+
+
+@app.get("/projects/{project_id}/cms/sections/{section_id}", response_class=HTMLResponse)
+async def cms_section_editor(request: Request, project_id: str, section_id: str):
+    require_login(request)
+    try:
+        project = await api_request("GET", f"/projects/{project_id}")
+    except Exception:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return templates.TemplateResponse("cms_editor.html", {
+        "request": request,
+        "project": project,
+        "section_id": section_id,
     })
 
 
@@ -221,15 +248,9 @@ async def create_website(
     files: List[UploadFile] = File(default=[]),
     asset_types: List[str] = Form(default=[]),
     descriptions: List[str] = Form(default=[]),
-    sheets_enabled: str = Form(default=""),
-    sheets_mode: str = Form(default="auto"),
-    sheets_url: str = Form(default=""),
-    sheets_sections_json: str = Form(default="[]"),
-    sheets_client_email: str = Form(default=""),
     ai_images: str = Form(default=""),
 ):
     require_login(request)
-    import json as _json
     try:
         uploaded_assets = []
         for i, file in enumerate(files):
@@ -248,20 +269,7 @@ async def create_website(
                 resp.raise_for_status()
                 uploaded_assets.append(resp.json())
 
-        # Flags that drive the creation pipeline belong inside `config`.
         config_payload: dict = {}
-        if sheets_enabled == "1":
-            config_payload["sheets_enabled"] = True
-            if sheets_mode == "connect" and sheets_url.strip():
-                config_payload["sheets_url"] = sheets_url.strip()
-            try:
-                parsed_sections = _json.loads(sheets_sections_json) if sheets_sections_json else []
-            except Exception:
-                parsed_sections = []
-            if parsed_sections:
-                config_payload["sheets_sections"] = parsed_sections
-            if sheets_client_email.strip():
-                config_payload["client_email"] = sheets_client_email.strip()
         if ai_images == "1":
             config_payload["ai_images"] = True
 
@@ -356,75 +364,49 @@ async def rollback(request: Request, project_id: str, target_revision_id: str = 
         return _redirect_with_error(f"/projects/{project_id}", f"Rollback fallito: {e}")
 
 
-# ---- Google Sheets proxy routes ----
+# ---- CMS API proxy ----
+# The browser-side CMS editor calls /proxy/cms-api/* and we forward to agent-api
+# adding the X-API-Secret header. Only CMS endpoints are whitelisted.
 
-@app.post("/projects/{project_id}/sheets/connect")
-async def sheets_connect(
-    request: Request,
-    project_id: str,
-    sheet_url: str = Form(...),
-    client_email: str = Form(default=""),
-):
+def _is_cms_path(path: str) -> bool:
+    """Allow only CMS-related paths to be proxied to agent-api."""
+    if not path.startswith("/"):
+        return False
+    if path.startswith("/cms/"):
+        return True
+    if path.startswith("/projects/"):
+        return "/cms" in path[len("/projects/"):]
+    return False
+
+
+@app.api_route("/proxy/cms-api/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
+async def cms_proxy(request: Request, path: str):
     require_login(request)
+    target_path = "/" + path
+    if not _is_cms_path(target_path):
+        raise HTTPException(status_code=403, detail="Path non autorizzato")
+
+    url = f"{settings.agent_api_url}{target_path}"
+    headers = {"X-API-Secret": settings.agent_api_secret}
+    params = dict(request.query_params)
+
+    content_type = request.headers.get("content-type", "")
+    body = await request.body()
+    if "application/json" in content_type and body:
+        headers["Content-Type"] = "application/json"
+    elif "multipart/form-data" in content_type:
+        headers["Content-Type"] = content_type
+
     try:
-        payload = {"sheet_url": sheet_url}
-        if client_email.strip():
-            payload["client_email"] = client_email.strip()
-        await api_request("POST", f"/projects/{project_id}/sheets/connect", json=payload)
-        return RedirectResponse(url=f"/projects/{project_id}?sheets=connected", status_code=302)
-    except Exception as e:
-        logger.error(f"Sheets connect error: {e}")
-        return _redirect_with_flash(f"/projects/{project_id}", "sheets_error", str(e))
-
-
-@app.post("/projects/{project_id}/sheets/create")
-async def sheets_create(
-    request: Request,
-    project_id: str,
-    title: str = Form(default=""),
-    client_email: str = Form(default=""),
-    sections_json: str = Form(default="[]"),
-):
-    require_login(request)
-    import json as _json
-    try:
-        sections = _json.loads(sections_json) if sections_json else []
-    except Exception:
-        sections = []
-    try:
-        payload: dict = {"sections": sections}
-        if title.strip():
-            payload["title"] = title.strip()
-        if client_email.strip():
-            payload["client_email"] = client_email.strip()
-        await api_request("POST", f"/projects/{project_id}/sheets/create", json=payload)
-        return RedirectResponse(url=f"/projects/{project_id}?sheets=created", status_code=302)
-    except Exception as e:
-        logger.error(f"Sheets create error: {e}")
-        return _redirect_with_flash(f"/projects/{project_id}", "sheets_error", str(e))
-
-
-@app.post("/projects/{project_id}/sheets/share")
-async def sheets_share(
-    request: Request,
-    project_id: str,
-    email: str = Form(...),
-):
-    require_login(request)
-    try:
-        await api_request("POST", f"/projects/{project_id}/sheets/share", params={"email": email})
-        return RedirectResponse(url=f"/projects/{project_id}?sheets=shared", status_code=302)
-    except Exception as e:
-        logger.error(f"Sheets share error: {e}")
-        return _redirect_with_flash(f"/projects/{project_id}", "sheets_error", str(e))
-
-
-@app.post("/projects/{project_id}/sheets/disconnect")
-async def sheets_disconnect(request: Request, project_id: str):
-    require_login(request)
-    try:
-        await api_request("DELETE", f"/projects/{project_id}/sheets/disconnect")
-        return RedirectResponse(url=f"/projects/{project_id}?sheets=disconnected", status_code=302)
-    except Exception as e:
-        logger.error(f"Sheets disconnect error: {e}")
-        return _redirect_with_flash(f"/projects/{project_id}", "sheets_error", str(e))
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            resp = await client.request(
+                request.method, url, headers=headers, params=params, content=body,
+            )
+        return Response(
+            content=resp.content,
+            status_code=resp.status_code,
+            media_type=resp.headers.get("content-type", "application/json"),
+        )
+    except httpx.RequestError as exc:
+        logger.error(f"CMS proxy network error: {exc}")
+        raise HTTPException(status_code=502, detail=f"Errore di rete: {exc}") from exc

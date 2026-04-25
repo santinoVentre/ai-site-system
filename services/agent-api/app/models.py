@@ -195,3 +195,104 @@ class Approval(Base):
     decided_at = Column(DateTime(timezone=True))
     notes = Column(Text)
     created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+
+
+# ============================================================================
+# CMS — dynamic content editable from the admin dashboard
+# ============================================================================
+
+class ContentSection(Base):
+    """A typed content collection attached to a project (e.g. menu, hours, faq).
+
+    The `kind` matches a key in `app.cms.kinds.KIND_REGISTRY`. The `key` is a
+    stable slug (unique per project) used to reference the section from the
+    generated site (e.g. `data-cms-section="menu"`).
+    """
+
+    __tablename__ = "content_sections"
+    __table_args__ = (
+        Index("ix_content_sections_project_key", "project_id", "key", unique=True),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    kind = Column(String(50), nullable=False, index=True)
+    key = Column(String(80), nullable=False)
+    label = Column(String(255), nullable=False)
+    position = Column(Integer, nullable=False, default=0)
+    settings = Column(JSONB, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    items = relationship(
+        "ContentItem",
+        back_populates="section",
+        cascade="all, delete-orphan",
+        order_by="ContentItem.position",
+    )
+
+
+class ContentItem(Base):
+    """A single item inside a `ContentSection` (e.g. one dish in a menu)."""
+
+    __tablename__ = "content_items"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    section_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("content_sections.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    position = Column(Integer, nullable=False, default=0)
+    data = Column(JSONB, nullable=False, default=dict)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    section = relationship("ContentSection", back_populates="items")
+
+
+class ContentImage(Base):
+    """An image uploaded by the customer through the CMS.
+
+    Files live on disk under `<cms_assets_path>/<project_slug>/...`. We store
+    metadata (dimensions, mime, size) so the dashboard can show thumbnails
+    without re-reading the file.
+    """
+
+    __tablename__ = "content_images"
+    __table_args__ = (
+        Index("ix_content_images_project_created", "project_id", "created_at"),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    original_filename = Column(String(500))
+    stored_filename = Column(String(500), nullable=False)
+    mime_type = Column(String(100), nullable=False)
+    size_bytes = Column(Integer, nullable=False, default=0)
+    width = Column(Integer)
+    height = Column(Integer)
+    url = Column(String(500), nullable=False)
+    alt_text = Column(String(500), default="")
+    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)

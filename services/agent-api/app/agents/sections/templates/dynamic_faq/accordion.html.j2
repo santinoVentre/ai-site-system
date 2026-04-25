@@ -1,6 +1,8 @@
-{# Dynamic FAQ section from Sheets #}
+{# Dynamic FAQ — prerendered + hydrated #}
+{% set cms_key = section.cms_key|default(section.id|default('faq')) %}
+{% set items = section.cms_items|default([]) %}
 <section id="{{ section.id|default('faq') }}" class="py-20 lg:py-24 bg-white"
-         data-sheet-section="{{ section.sheet_key|default('faq') }}" data-sheet-kind="faq">
+         data-cms-section="{{ cms_key }}" data-cms-kind="faq">
   <div class="max-w-3xl mx-auto px-6 lg:px-8">
     <div class="text-center reveal mb-10">
       {% if section.eyebrow %}<p class="text-sm font-semibold uppercase tracking-wide text-brand-700">{{ section.eyebrow }}</p>{% endif %}
@@ -8,8 +10,20 @@
       {% if section.subheadline %}<p class="mt-4 text-lg text-slate-600">{{ section.subheadline }}</p>{% endif %}
     </div>
     <div class="reveal">
-      <div data-sheet-mount>
-        <p class="text-slate-500 text-sm">Caricamento…</p>
+      <div data-cms-mount class="space-y-3">
+        {% if items %}
+          {% for it in items %}
+            <details class="group rounded-xl ring-1 ring-slate-200 bg-surface p-4">
+              <summary class="cursor-pointer list-none flex items-center justify-between font-medium text-ink">
+                <span>{{ it.question|default('') }}</span>
+                <svg class="w-5 h-5 transition-transform group-open:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+              </summary>
+              <div class="mt-3 text-slate-600 text-sm leading-relaxed">{{ it.answer|default('') }}</div>
+            </details>
+          {% endfor %}
+        {% else %}
+          <p class="text-slate-500 text-sm">Caricamento…</p>
+        {% endif %}
       </div>
     </div>
   </div>

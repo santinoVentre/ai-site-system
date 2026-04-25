@@ -6,8 +6,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
-    Project, ProjectRevision, Job, Artifact, ChangeRequest,
+    Artifact, ChangeRequest, ContentSection, Job, Project, ProjectRevision,
 )
+from app.services.cms_publish import get_cms_payload
 from app.services.job_manager import transition_job, set_job_error
 from app.services.git_manager import (
     commit_revision, create_revision_branch, copy_revision_for_preview,
@@ -160,12 +161,20 @@ async def run_modify_website(
                 project_spec=project_spec,
             )
 
+            cms_data = await get_cms_payload(db, project.id)
+            cms_data_url = (
+                f"{settings.site_base_url}/api/projects/{project.slug}/cms/data"
+                if cms_data else None
+            )
+
             build_manifest = await run_builder(
                 project_spec=project_spec,
                 site_copy=site_copy,
                 design_tokens=design_tokens,
                 image_urls=image_map,
                 project_slug=project.slug,
+                cms_data=cms_data,
+                cms_data_url=cms_data_url,
             )
             await _save_artifact(db, job_id, None, "build_manifest", build_manifest)
 

@@ -12,16 +12,6 @@
     {{ flash }}
 </div>
 {% endif %}
-{% if sheets_error %}
-<div style="background:#7f1d1d;color:#fca5a5;border:1px solid #b91c1c;border-radius:var(--radius);padding:12px 16px;margin-bottom:16px;font-size:0.9rem;">
-    <strong>Errore Google Sheets:</strong> {{ sheets_error }}
-</div>
-{% elif sheets_ok %}
-<div style="background:#14532d;color:#86efac;border:1px solid #16a34a;border-radius:var(--radius);padding:12px 16px;margin-bottom:16px;font-size:0.9rem;">
-    Operazione completata: {{ sheets_ok }}
-</div>
-{% endif %}
-
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
     <div>
         <a href="/" class="text-secondary text-sm">← Dashboard</a>
@@ -43,190 +33,28 @@
     </form>
 </div>
 
-<!-- Google Sheets Integration -->
+<!-- CMS — dynamic content -->
 <div class="card" style="margin-top: 24px;">
-    <h2 style="display:flex;align-items:center;gap:8px;">
-        <span>📊</span> Google Sheets
-        {% if sheets_status and sheets_status.connected %}
-            <span class="badge badge-success" style="font-size:0.75rem;">Connesso</span>
-        {% else %}
-            <span class="badge badge-neutral" style="font-size:0.75rem;">Non connesso</span>
-        {% endif %}
+    <h2 style="display:flex;align-items:center;gap:8px;justify-content:space-between;">
+        <span style="display:flex;align-items:center;gap:8px;">
+            <span>🗂️</span> Contenuti dinamici (CMS)
+            {% if cms_sections and cms_sections|length > 0 %}
+                <span class="badge badge-success" style="font-size:0.75rem;">{{ cms_sections|length }} sezioni</span>
+            {% else %}
+                <span class="badge badge-neutral" style="font-size:0.75rem;">Nessuna sezione</span>
+            {% endif %}
+        </span>
+        <a href="/projects/{{ project.id }}/cms" class="btn btn-sm btn-primary">Gestisci →</a>
     </h2>
-
-    {% if sheets_status and sheets_status.connected %}
-    <!-- Connected state -->
-    <div class="text-sm" style="margin-bottom:12px;">
-        <strong>{{ sheets_status.sheet_title or 'Foglio collegato' }}</strong>
-        <a href="{{ sheets_status.sheet_url }}" target="_blank" style="margin-left:8px;color:var(--primary);">
-            Apri Foglio ↗
-        </a>
-    </div>
-
-    {% if sheets_status.sections %}
-    <div style="margin-bottom:12px;">
-        <div class="text-secondary text-sm" style="margin-bottom:4px;">Sezioni dati:</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;">
-            {% for sec in sheets_status.sections %}
-            <span class="badge badge-info" style="font-size:0.75rem;">
-                {{ sec.label if sec is mapping else sec }}
-            </span>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
-
-    {% if sheets_status.client_email %}
-    <div class="text-sm text-secondary" style="margin-bottom:12px;">
-        Condiviso con: {{ sheets_status.client_email }}
-    </div>
-    {% endif %}
-
-    <!-- Share with new email -->
-    <details style="margin-bottom:12px;">
-        <summary class="text-sm" style="cursor:pointer;color:var(--primary);">Condividi con email…</summary>
-        <form method="POST" action="/projects/{{ project.id }}/sheets/share" style="display:flex;gap:8px;margin-top:8px;">
-            <input type="email" name="email" placeholder="cliente@email.com" required
-                   style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:6px 10px;font-size:0.85rem;">
-            <button type="submit" class="btn btn-sm" style="background:var(--primary);color:#fff;">Condividi</button>
-        </form>
-    </details>
-
-    <!-- Disconnect -->
-    <form method="POST" action="/projects/{{ project.id }}/sheets/disconnect" onsubmit="return confirm('Rimuovere collegamento a Google Sheets?')">
-        <button type="submit" class="btn btn-sm btn-danger">Disconnetti</button>
-    </form>
-
-    {% else %}
-    <!-- Not connected — show connect / create panel -->
-    <p class="text-sm text-secondary" style="margin-bottom:16px;">
-        Collega un foglio Google Sheets per permettere al cliente di aggiornare contenuti dinamici (menu, orari, team, ecc.) senza toccare il codice.
+    <p class="text-sm text-secondary" style="margin:6px 0 12px;">
+        Permetti al cliente di aggiornare in autonomia menu, orari, FAQ, gallery, team e altri contenuti senza toccare il codice. Le modifiche pubblicate vanno live in pochi secondi.
     </p>
-
-    <div style="display:flex;gap:8px;margin-bottom:16px;">
-        <button type="button" class="btn btn-sm btn-primary" onclick="showSheetsPanel('connect')">
-            🔗 Collega foglio esistente
-        </button>
-        <button type="button" class="btn btn-sm" style="background:var(--border);" onclick="showSheetsPanel('create')">
-            ✨ Crea nuovo foglio
-        </button>
+    {% if cms_sections %}
+    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+        {% for sec in cms_sections %}
+        <span class="badge badge-info" style="font-size:0.75rem;">{{ sec.label or sec.kind }} · {{ sec.kind }}</span>
+        {% endfor %}
     </div>
-
-    <!-- Connect existing panel -->
-    <div id="sheets-connect-panel" style="display:none;">
-        <form method="POST" action="/projects/{{ project.id }}/sheets/connect">
-            <div class="form-group">
-                <label class="text-sm">URL Google Sheets</label>
-                <input type="url" name="sheet_url" required placeholder="https://docs.google.com/spreadsheets/d/..."
-                       style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:8px 10px;width:100%;box-sizing:border-box;font-size:0.9rem;">
-            </div>
-            <div class="form-group">
-                <label class="text-sm">Email cliente (opzionale — condivide il foglio)</label>
-                <input type="email" name="client_email" placeholder="cliente@email.com"
-                       style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:8px 10px;width:100%;box-sizing:border-box;font-size:0.9rem;">
-            </div>
-            <div class="flex gap-2">
-                <button type="submit" class="btn btn-sm btn-primary">Collega</button>
-                <button type="button" class="btn btn-sm" style="background:var(--border);" onclick="hideSheetsPanel()">Annulla</button>
-            </div>
-        </form>
-    </div>
-
-    <!-- Create new panel -->
-    <div id="sheets-create-panel" style="display:none;">
-        <form method="POST" action="/projects/{{ project.id }}/sheets/create" id="sheets-create-form">
-            <div class="form-group">
-                <label class="text-sm">Titolo foglio (opzionale)</label>
-                <input type="text" name="title" placeholder="{{ project.name }} — Dati Sito"
-                       style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:8px 10px;width:100%;box-sizing:border-box;font-size:0.9rem;">
-            </div>
-            <div class="form-group">
-                <label class="text-sm">Sezioni dati <span class="text-secondary">(ogni sezione = un tab nel foglio)</span></label>
-                <div id="sections-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;"></div>
-                <div style="display:flex;gap:6px;">
-                    <input type="text" id="new-section-name" placeholder="es. menu, orari, team…"
-                           style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:6px 10px;font-size:0.85rem;">
-                    <button type="button" class="btn btn-sm" style="background:var(--border);" onclick="addSection()">+ Aggiungi</button>
-                </div>
-                <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;">
-                    {% set common_sections = [('menu','Menu'),('orari','Orari'),('team','Team'),('faq','FAQ'),('prezzi','Prezzi'),('eventi','Eventi'),('gallery','Galleria'),('servizi','Servizi'),('recensioni','Recensioni'),('contatti','Contatti')] %}
-                    {% for slug, label in common_sections %}
-                    <button type="button" class="btn btn-sm" style="background:var(--surface);border:1px solid var(--border);font-size:0.75rem;padding:2px 8px;" onclick="addSection('{{ slug }}','{{ label }}')">{{ label }}</button>
-                    {% endfor %}
-                </div>
-            </div>
-            <div class="form-group">
-                <label class="text-sm">Email cliente (opzionale — condivide il foglio)</label>
-                <input type="email" name="client_email" placeholder="cliente@email.com"
-                       style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:8px 10px;width:100%;box-sizing:border-box;font-size:0.9rem;">
-            </div>
-            <input type="hidden" name="sections_json" id="sections-json-input">
-            <div class="flex gap-2">
-                <button type="submit" class="btn btn-sm btn-primary" onclick="prepSectionsJson()">Crea foglio</button>
-                <button type="button" class="btn btn-sm" style="background:var(--border);" onclick="hideSheetsPanel()">Annulla</button>
-            </div>
-        </form>
-    </div>
-
-    <script>
-    var sheetSections = [];
-    var defaultColumns = {
-        menu: ['Nome','Descrizione','Categoria','Prezzo','Foto_URL'],
-        orari: ['Giorno','Apertura','Chiusura','Note'],
-        team: ['Nome','Ruolo','Bio','Foto_URL'],
-        faq: ['Domanda','Risposta','Categoria'],
-        prezzi: ['Servizio','Prezzo','Descrizione'],
-        eventi: ['Titolo','Data','Ora','Descrizione','Luogo'],
-        gallery: ['Titolo','Foto_URL','Descrizione'],
-        servizi: ['Servizio','Descrizione','Prezzo'],
-        recensioni: ['Nome','Testo','Valutazione'],
-        contatti: ['Campo','Valore'],
-    };
-
-    function showSheetsPanel(mode) {
-        document.getElementById('sheets-connect-panel').style.display = mode === 'connect' ? 'block' : 'none';
-        document.getElementById('sheets-create-panel').style.display = mode === 'create' ? 'block' : 'none';
-    }
-    function hideSheetsPanel() {
-        document.getElementById('sheets-connect-panel').style.display = 'none';
-        document.getElementById('sheets-create-panel').style.display = 'none';
-    }
-
-    function addSection(name, label) {
-        if (!name) {
-            name = document.getElementById('new-section-name').value.trim().toLowerCase().replace(/\s+/g,'_');
-            document.getElementById('new-section-name').value = '';
-        }
-        if (!name) return;
-        if (sheetSections.find(s => s.name === name)) return;
-        label = label || name.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
-        var cols = defaultColumns[name] || ['Titolo','Descrizione','Valore'];
-        sheetSections.push({name: name, label: label, columns: cols, description: ''});
-        renderSectionList();
-    }
-
-    function removeSection(name) {
-        sheetSections = sheetSections.filter(s => s.name !== name);
-        renderSectionList();
-    }
-
-    function renderSectionList() {
-        var list = document.getElementById('sections-list');
-        list.innerHTML = '';
-        sheetSections.forEach(function(s) {
-            var row = document.createElement('div');
-            row.style = 'display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:6px 10px;';
-            row.innerHTML = '<span class="text-sm" style="flex:1;"><strong>' + s.label + '</strong> <span class="text-secondary">(' + s.name + ')</span></span>'
-                + '<span class="text-sm text-secondary" style="font-size:0.75rem;">' + s.columns.slice(0,3).join(', ') + (s.columns.length > 3 ? '…' : '') + '</span>'
-                + '<button type="button" onclick="removeSection(\'' + s.name + '\')" style="background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:1rem;">✕</button>';
-            list.appendChild(row);
-        });
-    }
-
-    function prepSectionsJson() {
-        document.getElementById('sections-json-input').value = JSON.stringify(sheetSections);
-    }
-    </script>
     {% endif %}
 </div>
 

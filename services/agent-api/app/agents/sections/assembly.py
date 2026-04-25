@@ -73,8 +73,14 @@ def _enrich_section(
     *,
     copy_payload: dict,
     image_urls: dict[str, str],
+    cms_data: dict[str, dict] | None = None,
 ) -> dict:
-    """Merge copy data for this section id into the section dict (if any) and resolve images."""
+    """Merge copy data for this section id into the section dict (if any) and resolve images.
+
+    If the section is dynamic (`type` starts with `dynamic_`) and matching CMS
+    data is present, attach the CMS items + settings so the Jinja template can
+    prerender them server-side (great for SEO).
+    """
     enriched = dict(section)
     sid = enriched.get("id")
     if sid:
@@ -95,6 +101,21 @@ def _enrich_section(
             if resolved:
                 item["image_url"] = resolved
 
+    if cms_data and (enriched.get("type") or "").startswith("dynamic_"):
+        cms_key = enriched.get("cms_key") or sid
+        if cms_key and cms_key in cms_data:
+            block = cms_data[cms_key]
+            if isinstance(block, dict):
+                enriched.setdefault("cms_items", block.get("items") or [])
+                cms_settings = block.get("settings") or {}
+                for k, v in cms_settings.items():
+                    if v not in (None, "") and not enriched.get(k):
+                        enriched[k] = v
+                enriched.setdefault("cms_kind", block.get("kind"))
+                enriched.setdefault("cms_label", block.get("label"))
+            elif isinstance(block, list):
+                enriched.setdefault("cms_items", block)
+
     return enriched
 
 
@@ -105,7 +126,8 @@ def assemble_site(
     design_tokens: dict,
     layout_plan: dict,
     image_urls: dict[str, str] | None = None,
-    sheets_data_url: str | None = None,
+    cms_data: dict[str, dict] | None = None,
+    cms_data_url: str | None = None,
 ) -> dict[str, str]:
     """Return a mapping of file path -> file contents.
 
@@ -127,6 +149,7 @@ def assemble_site(
     }
     """
     image_urls = image_urls or {}
+    cms_data = cms_data or {}
     files: dict[str, str] = {}
 
     brand = {
@@ -177,6 +200,7 @@ def assemble_site(
                 {**raw, "variant": variant},
                 copy_payload=site_copy,
                 image_urls=image_urls,
+                cms_data=cms_data,
             )
             sections.append(section)
 
@@ -187,7 +211,8 @@ def assemble_site(
             "page": page_ctx_meta,
             "nav_items": nav_items,
             "site_copy": site_copy,
-            "sheets_data_url": sheets_data_url,
+            "cms_data": cms_data,
+            "cms_data_url": cms_data_url,
             "current_year": _dt.datetime.now().year,
         }
 

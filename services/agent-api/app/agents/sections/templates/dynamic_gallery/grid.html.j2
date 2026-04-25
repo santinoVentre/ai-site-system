@@ -1,6 +1,8 @@
-{# Dynamic gallery section from Sheets #}
+{# Dynamic gallery — prerendered + hydrated #}
+{% set cms_key = section.cms_key|default(section.id|default('gallery')) %}
+{% set items = section.cms_items|default([]) %}
 <section id="{{ section.id|default('gallery') }}" class="py-20 lg:py-24 bg-white"
-         data-sheet-section="{{ section.sheet_key|default('gallery') }}" data-sheet-kind="gallery">
+         data-cms-section="{{ cms_key }}" data-cms-kind="gallery">
   <div class="max-w-content mx-auto px-6 lg:px-8">
     <div class="text-center max-w-2xl mx-auto reveal mb-10">
       {% if section.eyebrow %}<p class="text-sm font-semibold uppercase tracking-wide text-brand-700">{{ section.eyebrow }}</p>{% endif %}
@@ -8,8 +10,24 @@
       {% if section.subheadline %}<p class="mt-4 text-lg text-slate-600">{{ section.subheadline }}</p>{% endif %}
     </div>
     <div class="reveal">
-      <div data-sheet-mount>
-        <p class="text-slate-500 text-sm text-center">Caricamento…</p>
+      <div data-cms-mount class="grid grid-cols-2 md:grid-cols-3 gap-4">
+        {% if items %}
+          {% for it in items %}
+            {% if it.image %}
+              <figure class="rounded-xl overflow-hidden ring-1 ring-slate-200 bg-surface">
+                <img src="{{ it.image }}" alt="{{ it.title|default('') }}" loading="lazy" class="w-full h-56 object-cover">
+                {% if it.title or it.description %}
+                  <figcaption class="px-3 py-2 text-xs text-slate-500">
+                    {% if it.title %}<span class="font-medium text-ink">{{ it.title }}</span>{% endif %}
+                    {% if it.description %}<span class="block">{{ it.description }}</span>{% endif %}
+                  </figcaption>
+                {% endif %}
+              </figure>
+            {% endif %}
+          {% endfor %}
+        {% else %}
+          <p class="text-slate-500 text-sm text-center col-span-full">Caricamento…</p>
+        {% endif %}
       </div>
     </div>
   </div>

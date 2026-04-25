@@ -1,0 +1,354 @@
+{% extends "base.html" %}
+{% block title %}Editor — {{ project.name }}{% endblock %}
+{% block content %}
+
+<style>
+    .editor-grid { display:grid; grid-template-columns: 1fr; gap:16px; }
+    @media (min-width: 1024px) { .editor-grid { grid-template-columns: 320px 1fr; align-items:flex-start; } }
+    .editor-aside { position:sticky; top:16px; }
+    .item-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px; }
+    .item-card + .item-card { margin-top:10px; }
+    .item-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; }
+    .item-title { font-weight:600; }
+    .item-actions { display:flex; gap:4px; }
+    .item-actions button { padding:3px 8px; font-size:0.75rem; }
+    .field-row { margin-bottom:12px; }
+    .field-row label { display:block; font-size:0.8rem; color:var(--text-secondary); margin-bottom:4px; font-weight:500; }
+    .field-row .help { font-size:0.72rem; color:var(--text-secondary); margin-top:3px; opacity:.8; }
+    .field-row input, .field-row textarea, .field-row select { width:100%; padding:8px 10px; background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); font-size:0.88rem; }
+    .field-row textarea { font-family:inherit; min-height:70px; resize:vertical; }
+    .field-row input[type=checkbox] { width:auto; margin-right:6px; }
+    .img-uploader { display:flex; align-items:center; gap:10px; padding:8px; background:var(--bg); border:1px dashed var(--border); border-radius:6px; }
+    .img-uploader.dragover { border-color:var(--primary); background:rgba(99,102,241,.05); }
+    .img-thumb { width:64px; height:64px; object-fit:cover; border-radius:6px; background:var(--bg); }
+    .img-uploader .uploader-info { flex:1; font-size:0.8rem; color:var(--text-secondary); }
+    .toast { position:fixed; bottom:20px; right:20px; background:var(--surface); border:1px solid var(--primary); border-radius:8px; padding:12px 16px; font-size:0.9rem; box-shadow:0 8px 30px rgba(0,0,0,.4); z-index:100; max-width:360px; }
+    .toast.error { border-color:var(--danger); }
+    .pill { display:inline-block; padding:2px 8px; font-size:0.7rem; background:var(--bg); border:1px solid var(--border); border-radius:10px; color:var(--text-secondary); }
+    .field-row textarea.list-input { min-height:90px; }
+</style>
+
+<div x-data="cmsEditor()" x-init="boot()">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;gap:12px;flex-wrap:wrap;">
+        <div>
+            <a href="/projects/{{ project.id }}/cms" class="text-secondary text-sm">← CMS</a>
+            <h1 style="margin-top:8px;display:flex;align-items:center;gap:10px;">
+                <span x-text="kindMeta.icon || '📋'"></span>
+                <span x-text="(section.label || kindMeta.label || section.kind || '...')"></span>
+            </h1>
+            <div class="text-secondary text-sm" x-show="section.key">
+                Slug: <code class="mono" x-text="section.key"></code> · <span class="pill" x-text="section.kind"></span>
+            </div>
+        </div>
+        <div class="flex gap-2 items-center">
+            <button class="btn btn-sm" style="background:var(--border);" @click="addItem()">+ Aggiungi elemento</button>
+            <button class="btn btn-sm btn-primary" @click="publish()" :disabled="publishing">
+                <span x-show="!publishing">🚀 Pubblica</span>
+                <span x-show="publishing">…</span>
+            </button>
+        </div>
+    </div>
+
+    <template x-if="loading"><div class="card text-secondary">Caricamento…</div></template>
+
+    <div x-show="!loading" class="editor-grid">
+        <!-- Section settings (left rail) -->
+        <aside class="editor-aside">
+            <div class="card">
+                <h2 style="margin-top:0;">Impostazioni sezione</h2>
+                <div class="field-row">
+                    <label>Etichetta interna</label>
+                    <input type="text" x-model="section.label" @change="saveSection()" placeholder="Es. Menu di stagione">
+                </div>
+                <template x-for="f in (kindMeta.settings_fields || [])" :key="f.key">
+                    <div class="field-row">
+                        <label x-text="f.label"></label>
+                        <template x-if="f.type === 'textarea'">
+                            <textarea x-model="section.settings[f.key]" :placeholder="f.placeholder || ''" :rows="f.rows || 3" @change="saveSection()"></textarea>
+                        </template>
+                        <template x-if="f.type !== 'textarea'">
+                            <input :type="f.type === 'number' ? 'number' : 'text'" x-model="section.settings[f.key]" :placeholder="f.placeholder || ''" @change="saveSection()">
+                        </template>
+                    </div>
+                </template>
+                <div class="text-sm text-secondary" style="margin-top:8px;">
+                    <strong x-text="items.length"></strong> elemento/i · salvataggio automatico
+                </div>
+            </div>
+        </aside>
+
+        <!-- Items list -->
+        <section>
+            <template x-if="items.length === 0">
+                <div class="card" style="text-align:center;padding:30px;">
+                    <p class="text-secondary">Nessun elemento. Clicca <strong>+ Aggiungi elemento</strong> per iniziare.</p>
+                </div>
+            </template>
+
+            <template x-for="(it, idx) in items" :key="it.id">
+                <div class="item-card">
+                    <div class="item-head">
+                        <div class="item-title" x-text="itemLabel(it, idx)"></div>
+                        <div class="item-actions">
+                            <button class="btn btn-sm" style="background:var(--border);" @click="moveItemUp(idx)" :disabled="idx===0">▲</button>
+                            <button class="btn btn-sm" style="background:var(--border);" @click="moveItemDown(idx)" :disabled="idx===items.length-1">▼</button>
+                            <button class="btn btn-sm btn-danger" @click="removeItem(it)">✕</button>
+                        </div>
+                    </div>
+                    <template x-for="f in (kindMeta.fields || [])" :key="f.key">
+                        <div class="field-row">
+                            <label>
+                                <span x-text="f.label"></span>
+                                <span x-show="f.required" style="color:var(--danger);">*</span>
+                            </label>
+
+                            <template x-if="f.type === 'text' || f.type === 'url' || f.type === 'email' || f.type === 'tel' || f.type === 'time' || f.type === 'date'">
+                                <input :type="f.type === 'url' ? 'url' : (f.type === 'email' ? 'email' : (f.type === 'tel' ? 'tel' : (f.type === 'time' ? 'time' : (f.type === 'date' ? 'date' : 'text'))))"
+                                       x-model="it.data[f.key]" :placeholder="f.placeholder || ''" @change="saveItem(it)">
+                            </template>
+
+                            <template x-if="f.type === 'number' || f.type === 'price'">
+                                <input type="text" inputmode="decimal" x-model="it.data[f.key]" :placeholder="f.placeholder || (f.type==='price' ? 'Es. 12.00' : '')" @change="saveItem(it)">
+                            </template>
+
+                            <template x-if="f.type === 'textarea' || f.type === 'richtext'">
+                                <textarea x-model="it.data[f.key]" :rows="f.rows || 3" :placeholder="f.placeholder || ''" @change="saveItem(it)"></textarea>
+                            </template>
+
+                            <template x-if="f.type === 'boolean'">
+                                <label style="display:flex;align-items:center;gap:6px;font-size:0.88rem;color:var(--text);">
+                                    <input type="checkbox" :checked="!!it.data[f.key]" @change="it.data[f.key] = $event.target.checked; saveItem(it)">
+                                    <span>Attivo</span>
+                                </label>
+                            </template>
+
+                            <template x-if="f.type === 'select'">
+                                <select x-model="it.data[f.key]" @change="saveItem(it)">
+                                    <option value="">—</option>
+                                    <template x-for="o in (f.options || [])" :key="o.value">
+                                        <option :value="o.value" x-text="o.label"></option>
+                                    </template>
+                                </select>
+                            </template>
+
+                            <template x-if="f.type === 'list'">
+                                <textarea class="list-input" x-model="it._listText[f.key]"
+                                          :placeholder="'Una voce per riga'"
+                                          @change="onListChange(it, f.key)"></textarea>
+                            </template>
+
+                            <template x-if="f.type === 'image'">
+                                <div class="img-uploader"
+                                     @dragover.prevent="$el.classList.add('dragover')"
+                                     @dragleave="$el.classList.remove('dragover')"
+                                     @drop.prevent="$el.classList.remove('dragover'); onDrop($event, it, f.key)">
+                                    <template x-if="it.data[f.key]">
+                                        <img class="img-thumb" :src="it.data[f.key]" :alt="f.label">
+                                    </template>
+                                    <template x-if="!it.data[f.key]">
+                                        <div class="img-thumb" style="display:flex;align-items:center;justify-content:center;font-size:1.5rem;color:var(--text-secondary);">🖼️</div>
+                                    </template>
+                                    <div class="uploader-info">
+                                        <div x-show="!it._uploading[f.key]">
+                                            Trascina un'immagine qui o
+                                            <label style="color:var(--primary);cursor:pointer;text-decoration:underline;">
+                                                seleziona file
+                                                <input type="file" accept="image/*" style="display:none;" @change="onPickFile($event, it, f.key)">
+                                            </label>
+                                        </div>
+                                        <div x-show="it._uploading[f.key]">Caricamento…</div>
+                                        <div x-show="it.data[f.key]" style="margin-top:4px;">
+                                            <button type="button" class="btn btn-sm" style="background:var(--border);padding:2px 6px;font-size:0.7rem;" @click="it.data[f.key]=''; saveItem(it)">Rimuovi</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <div class="help" x-show="f.help" x-text="f.help"></div>
+                        </div>
+                    </template>
+                </div>
+            </template>
+        </section>
+    </div>
+
+    <template x-if="toast">
+        <div class="toast" :class="toastType==='error' ? 'error' : ''" x-text="toast" @click="toast=''"></div>
+    </template>
+</div>
+
+<script>
+function cmsEditor() {
+    return {
+        loading: true,
+        publishing: false,
+        sectionId: '{{ section_id }}',
+        projectId: '{{ project.id }}',
+        section: { label: '', kind: '', key: '', settings: {} },
+        items: [],
+        kinds: [],
+        kindMap: {},
+        get kindMeta() { return this.kindMap[this.section.kind] || {}; },
+        toast: '', toastType: 'info',
+        _saveTimer: null,
+        _itemSaveTimers: {},
+
+        async boot() {
+            try {
+                var [kinds, sec, items] = await Promise.all([
+                    this._call('GET', '/cms/kinds'),
+                    this._call('GET', '/cms/sections/' + this.sectionId),
+                    this._call('GET', '/cms/sections/' + this.sectionId + '/items'),
+                ]);
+                this.kinds = kinds;
+                this.kindMap = Object.fromEntries(kinds.map(k => [k.kind, k]));
+                this.section = sec;
+                if (!this.section.settings) this.section.settings = {};
+                (this.kindMeta.settings_fields || []).forEach(f => {
+                    if (this.section.settings[f.key] === undefined) this.section.settings[f.key] = '';
+                });
+                this.items = items.map(it => this._normalizeItem(it));
+            } catch (e) { this._toast('Errore: ' + e.message, 'error'); }
+            this.loading = false;
+        },
+
+        _normalizeItem(it) {
+            it.data = it.data || {};
+            it._uploading = {};
+            it._listText = {};
+            (this.kindMeta.fields || []).forEach(f => {
+                if (it.data[f.key] === undefined) it.data[f.key] = (f.type === 'boolean' ? false : '');
+                if (f.type === 'list') {
+                    var v = it.data[f.key];
+                    it._listText[f.key] = Array.isArray(v) ? v.join('\n') : (v || '');
+                }
+            });
+            return it;
+        },
+
+        itemLabel(it, idx) {
+            // Pick first text-like field with a value
+            for (var f of (this.kindMeta.fields || [])) {
+                if (['text','textarea','richtext'].includes(f.type)) {
+                    var v = it.data[f.key];
+                    if (v && String(v).trim()) return String(v).slice(0, 60);
+                }
+            }
+            return 'Elemento ' + (idx + 1);
+        },
+
+        onListChange(it, key) {
+            var raw = it._listText[key] || '';
+            it.data[key] = raw.split('\n').map(s => s.trim()).filter(Boolean);
+            this.saveItem(it);
+        },
+
+        saveSection() {
+            clearTimeout(this._saveTimer);
+            this._saveTimer = setTimeout(async () => {
+                try {
+                    await this._call('PUT', '/cms/sections/' + this.sectionId, {
+                        label: this.section.label, settings: this.section.settings,
+                    });
+                    this._toast('Sezione salvata');
+                } catch (e) { this._toast('Errore salvataggio: ' + e.message, 'error'); }
+            }, 500);
+        },
+
+        saveItem(it) {
+            clearTimeout(this._itemSaveTimers[it.id]);
+            this._itemSaveTimers[it.id] = setTimeout(async () => {
+                try {
+                    var saved = await this._call('PUT', '/cms/items/' + it.id, { data: it.data });
+                    Object.assign(it, saved);
+                    it._uploading = it._uploading || {};
+                    it._listText = it._listText || {};
+                } catch (e) { this._toast('Errore salvataggio: ' + e.message, 'error'); }
+            }, 400);
+        },
+
+        async addItem() {
+            var seed = {};
+            (this.kindMeta.fields || []).forEach(f => { seed[f.key] = (f.type === 'boolean' ? false : ''); });
+            try {
+                var it = await this._call('POST', '/cms/sections/' + this.sectionId + '/items', { data: seed });
+                this.items.push(this._normalizeItem(it));
+                this._toast('Elemento creato');
+            } catch (e) { this._toast('Errore: ' + e.message, 'error'); }
+        },
+
+        async removeItem(it) {
+            if (!confirm('Eliminare questo elemento?')) return;
+            try {
+                await this._call('DELETE', '/cms/items/' + it.id);
+                this.items = this.items.filter(x => x.id !== it.id);
+            } catch (e) { this._toast('Errore: ' + e.message, 'error'); }
+        },
+
+        async moveItemUp(idx) { if (idx > 0) await this._reorderItems(idx, idx-1); },
+        async moveItemDown(idx) { if (idx < this.items.length - 1) await this._reorderItems(idx, idx+1); },
+        async _reorderItems(from, to) {
+            var copy = this.items.slice();
+            var [m] = copy.splice(from, 1); copy.splice(to, 0, m);
+            this.items = copy;
+            try {
+                await this._call('POST', '/cms/sections/' + this.sectionId + '/items/reorder', { ids: copy.map(s => s.id) });
+            } catch (e) { this._toast('Errore reorder: ' + e.message, 'error'); }
+        },
+
+        async onPickFile(ev, it, key) {
+            var file = ev.target.files && ev.target.files[0];
+            if (file) await this._uploadImage(file, it, key);
+            ev.target.value = '';
+        },
+        async onDrop(ev, it, key) {
+            var file = ev.dataTransfer.files && ev.dataTransfer.files[0];
+            if (file) await this._uploadImage(file, it, key);
+        },
+        async _uploadImage(file, it, key) {
+            it._uploading[key] = true;
+            try {
+                var fd = new FormData();
+                fd.append('file', file, file.name);
+                var r = await fetch('/proxy/cms-api/projects/' + this.projectId + '/cms/images', { method: 'POST', body: fd });
+                if (!r.ok) {
+                    var t = await r.text(); try { var j = JSON.parse(t); t = j.detail || t; } catch (_) {}
+                    throw new Error(t || ('HTTP ' + r.status));
+                }
+                var img = await r.json();
+                it.data[key] = img.url;
+                this.saveItem(it);
+                this._toast('Immagine caricata');
+            } catch (e) { this._toast('Upload fallito: ' + e.message, 'error'); }
+            finally { it._uploading[key] = false; }
+        },
+
+        async publish() {
+            if (!confirm('Pubblicare ora le modifiche al sito live?')) return;
+            this.publishing = true;
+            try {
+                var r = await this._call('POST', '/projects/' + this.projectId + '/cms/publish', {});
+                this._toast('Pubblicato (rev #' + (r.revision_number || '—') + ')');
+            } catch (e) { this._toast('Errore publish: ' + e.message, 'error'); }
+            finally { this.publishing = false; }
+        },
+
+        _toast(msg, type) {
+            this.toast = msg; this.toastType = type || 'info';
+            setTimeout(() => { this.toast = ''; }, 3500);
+        },
+        async _call(method, path, body) {
+            var opts = { method: method, headers: {'Content-Type':'application/json'} };
+            if (body !== undefined) opts.body = JSON.stringify(body);
+            var r = await fetch('/proxy/cms-api' + path, opts);
+            if (!r.ok) {
+                var t = await r.text(); try { var j = JSON.parse(t); t = j.detail || t; } catch (_) {}
+                throw new Error(t || ('HTTP ' + r.status));
+            }
+            return r.json();
+        },
+    };
+}
+</script>
+
+{% endblock %}

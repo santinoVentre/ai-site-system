@@ -1,6 +1,14 @@
-{# Dynamic menu section — populated from Sheets at runtime #}
+{# Dynamic menu — prerendered server-side from CMS, hydrated live by client JS #}
+{% set cms_key = section.cms_key|default(section.id|default('menu')) %}
+{% set items = section.cms_items|default([]) %}
+{% set categories = {} %}
+{% for it in items %}
+  {% set cat = it.category|default('Menu') or 'Menu' %}
+  {% if cat not in categories %}{% set _ = categories.update({cat: []}) %}{% endif %}
+  {% set _ = categories[cat].append(it) %}
+{% endfor %}
 <section id="{{ section.id|default('menu') }}" class="py-20 lg:py-24 bg-surface"
-         data-sheet-section="{{ section.sheet_key|default('menu') }}" data-sheet-kind="menu">
+         data-cms-section="{{ cms_key }}" data-cms-kind="menu">
   <div class="max-w-content mx-auto px-6 lg:px-8">
     <div class="text-center max-w-2xl mx-auto reveal mb-10">
       {% if section.eyebrow %}<p class="text-sm font-semibold uppercase tracking-wide text-brand-700">{{ section.eyebrow }}</p>{% endif %}
@@ -8,8 +16,26 @@
       {% if section.subheadline %}<p class="mt-4 text-lg text-slate-600">{{ section.subheadline }}</p>{% endif %}
     </div>
     <div class="reveal bg-white rounded-2xl p-6 lg:p-8 ring-1 ring-slate-200/70">
-      <div data-sheet-mount class="text-sm">
-        <p class="text-slate-500">Caricamento menu…</p>
+      <div data-cms-mount class="text-sm">
+        {% if items %}
+          {% for cat, group in categories.items() %}
+            <h3 class="mt-8 mb-3 text-lg font-semibold text-ink">{{ cat }}</h3>
+            <div class="divide-y divide-slate-200">
+              {% for it in group %}
+                <div class="flex items-start justify-between py-4 gap-6">
+                  {% if it.image %}<img src="{{ it.image }}" alt="{{ it.name|default('') }}" class="w-20 h-20 rounded-xl object-cover shrink-0" loading="lazy">{% endif %}
+                  <div class="flex-1">
+                    <div class="font-medium">{{ it.name|default('') }}</div>
+                    {% if it.description %}<div class="text-sm text-slate-500 mt-1">{{ it.description }}</div>{% endif %}
+                  </div>
+                  {% if it.price not in (None, '') %}<div class="shrink-0 font-semibold text-brand-700">{{ it.price }}{% if it.price is number or (it.price|string).replace('.','',1).isdigit() %} €{% endif %}</div>{% endif %}
+                </div>
+              {% endfor %}
+            </div>
+          {% endfor %}
+        {% else %}
+          <p class="text-slate-500">Caricamento menu…</p>
+        {% endif %}
       </div>
     </div>
   </div>

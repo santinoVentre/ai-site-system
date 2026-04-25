@@ -11,6 +11,7 @@ import logging
 from typing import Any
 
 from app.agents.sections.catalog import SECTION_CATALOG, catalog_summary
+from app.cms import KIND_REGISTRY, section_template_for
 from app.services.llm_client import call_llm
 
 logger = logging.getLogger(__name__)
@@ -22,7 +23,7 @@ Rules:
 - Use ONLY section types and variants present in the catalog. Do NOT invent names.
 - Each page should have a coherent flow: navbar first, footer last, with 4-8 body sections between.
 - Pick variants that match the tone/site_type (luxury → minimal_centered hero; restaurant → dynamic_menu; SaaS → pricing tiers, features grid).
-- For every dynamic section listed in the project spec, include exactly one matching `dynamic_*` section with `sheet_key` equal to the dynamic section `name`.
+- For every dynamic section listed in the project spec, include exactly one matching `dynamic_*` section with `cms_key` equal to the dynamic section `key` (the right `dynamic_*` type is determined by the section `kind`; do not invent your own variant).
 - Every section must have a stable `id` (lowercase snake_case). Use predictable ids like `hero`, `services`, `about`, `team`, `testimonials`, `pricing`, `faq`, `contact`.
 - If the project_spec has multiple pages, build one entry per page. Otherwise output a single-page site.
 - Keep the layout deterministic and professional — no duplicate sections of the same type on the same page.
@@ -103,29 +104,49 @@ def _normalise_layout(layout: dict[str, Any], project_spec: dict) -> dict[str, A
             }
         )
 
-    # Ensure every dynamic section declared in spec has a layout entry on the home page
+    # Ensure every dynamic section declared in spec has a layout entry on the
+    # home page; backfill `cms_key` so the assembly step can resolve CMS data
+    # deterministically.
     dyn = project_spec.get("dynamic_sections") or []
     if dyn and clean_pages:
         home = clean_pages[0]
         existing_keys = {
-            s.get("sheet_key") for s in home["sections"] if s.get("type", "").startswith("dynamic_")
+            s.get("cms_key") for s in home["sections"]
+            if s.get("type", "").startswith("dynamic_")
         }
         for d in dyn:
-            name = d.get("name") if isinstance(d, dict) else None
-            if not name or name in existing_keys:
+            if not isinstance(d, dict):
                 continue
-            section_type, variant = _guess_dynamic_variant(name)
+            key = (d.get("key") or d.get("name") or "").strip().lower() or None
+            if not key or key in existing_keys:
+                continue
+            section_type, variant = _resolve_dynamic_variant(d)
             entry = {
                 "type": section_type,
                 "variant": variant,
-                "id": name,
-                "sheet_key": name,
-                "headline": d.get("label") if isinstance(d, dict) else name.title(),
+                "id": key,
+                "cms_key": key,
+                "headline": d.get("label") or key.title(),
             }
-            # Insert just before footer
             home["sections"].insert(-1, entry)
+            existing_keys.add(key)
 
     return {"pages": clean_pages}
+
+
+def _resolve_dynamic_variant(d: dict) -> tuple[str, str]:
+    """Pick (section_type, variant) from a dynamic_section spec.
+
+    Prefer the explicit `kind` (mapped via KIND_REGISTRY); fall back to a
+    keyword guess on the legacy `name` field if `kind` is missing.
+    """
+    kind = (d.get("kind") or "").strip().lower()
+    if kind and kind in KIND_REGISTRY:
+        try:
+            return section_template_for(kind)
+        except Exception:
+            pass
+    return _guess_dynamic_variant(d.get("name") or d.get("key") or "")
 
 
 def _guess_dynamic_variant(name: str) -> tuple[str, str]:
@@ -140,6 +161,16 @@ def _guess_dynamic_variant(name: str) -> tuple[str, str]:
         return "dynamic_faq", "accordion"
     if "galler" in n or "foto" in n or "gallery" in n:
         return "dynamic_gallery", "grid"
+    if "test" in n or "review" in n or "recension" in n:
+        return "dynamic_testimonials", "cards"
+    if "service" in n or "servizi" in n:
+        return "dynamic_services", "cards"
+    if "pricing" in n or "prezzi" in n or "listino" in n:
+        return "dynamic_pricing", "tiers"
+    if "event" in n:
+        return "dynamic_events", "cards"
+    if "contact" in n or "contatt" in n:
+        return "dynamic_contact", "list"
     return "dynamic_generic", "table"
 
 

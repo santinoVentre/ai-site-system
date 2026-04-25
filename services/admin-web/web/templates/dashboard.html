@@ -131,56 +131,8 @@
 
             <div id="file-list" style="margin-bottom:16px;"></div>
 
-            <!-- Google Sheets section -->
-            <div style="border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:16px;">
-                <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;cursor:pointer;background:var(--surface);"
-                     onclick="toggleSheets()">
-                    <span>📊</span>
-                    <span style="flex:1;font-size:0.9rem;font-weight:500;">Google Sheets <span class="text-secondary text-sm">(opzionale — dati dinamici)</span></span>
-                    <span id="sheets-chevron" style="transition:transform 0.2s;display:inline-block;">▼</span>
-                </div>
-                <div id="sheets-section" style="display:none;padding:14px;border-top:1px solid var(--border);">
-                    <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;cursor:pointer;font-size:0.9rem;">
-                        <input type="checkbox" id="sheets-toggle" name="sheets_enabled" value="1" onchange="onSheetsToggle(this.checked)">
-                        Abilita integrazione Google Sheets
-                    </label>
-                    <div id="sheets-options" style="display:none;">
-                        <div style="display:flex;gap:8px;margin-bottom:12px;">
-                            <label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;cursor:pointer;">
-                                <input type="radio" name="sheets_mode" value="auto" checked onchange="onSheetsModeChange('auto')"> Crea automaticamente
-                            </label>
-                            <label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;cursor:pointer;">
-                                <input type="radio" name="sheets_mode" value="connect" onchange="onSheetsModeChange('connect')"> Collega esistente
-                            </label>
-                        </div>
-
-                        <!-- Auto mode: section picker -->
-                        <div id="sheets-auto-opts">
-                            <div class="text-sm text-secondary" style="margin-bottom:6px;">Sezioni dati (il foglio verrà creato dopo la generazione del sito):</div>
-                            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
-                                {% set dash_sections = [('menu','🍽 Menu'),('orari','🕐 Orari'),('team','👥 Team'),('faq','❓ FAQ'),('prezzi','💰 Prezzi'),('eventi','📅 Eventi'),('gallery','🖼 Galleria'),('servizi','⚙️ Servizi'),('recensioni','⭐ Recensioni'),('contatti','📞 Contatti')] %}
-                                {% for slug, label in dash_sections %}
-                                <label style="display:flex;align-items:center;gap:4px;font-size:0.8rem;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:4px 8px;cursor:pointer;">
-                                    <input type="checkbox" class="dash-section-cb" data-slug="{{ slug }}" data-label="{{ label[2:] }}"> {{ label }}
-                                </label>
-                                {% endfor %}
-                            </div>
-                        </div>
-
-                        <!-- Connect mode: URL input -->
-                        <div id="sheets-connect-opts" style="display:none;">
-                            <input type="url" name="sheets_url" placeholder="https://docs.google.com/spreadsheets/d/..."
-                                   style="width:100%;box-sizing:border-box;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:8px 10px;font-size:0.85rem;">
-                        </div>
-
-                        <div class="form-group" style="margin-top:10px;margin-bottom:0;">
-                            <label style="font-size:0.85rem;" for="sheets-email-d">Email cliente <span class="text-secondary text-sm">(opzionale — condivide il foglio)</span></label>
-                            <input type="email" id="sheets-email-d" name="sheets_client_email" placeholder="cliente@email.com"
-                                   style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:8px 10px;width:100%;box-sizing:border-box;font-size:0.85rem;">
-                        </div>
-                        <input type="hidden" name="sheets_sections_json" id="sheets-sections-json">
-                    </div>
-                </div>
+            <div style="background:var(--bg);border:1px dashed var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:16px;font-size:0.85rem;color:var(--text-secondary);">
+                <strong style="color:var(--text);">💡 Contenuti dinamici</strong> — dopo la creazione del sito potrai aggiungere sezioni gestite dal cliente (menu, orari, FAQ, gallery, ecc.) dalla scheda <em>Contenuti dinamici (CMS)</em> del progetto.
             </div>
 
             <div class="flex gap-2">
@@ -216,35 +168,6 @@ function removeFile(idx) {
     fileObjects.splice(idx, 1);
     renderFileList();
 }
-
-function prepSectionsJson() {
-    var sections = [];
-    document.querySelectorAll('.dash-section-cb:checked').forEach(function(cb) {
-        var name = cb.dataset.slug;
-        sections.push({name: name, label: cb.dataset.label});
-    });
-    document.getElementById('sheets-sections-json').value = JSON.stringify(sections);
-}
-
-function toggleSheets() {
-    var panel = document.getElementById('sheets-section');
-    var chevron = document.getElementById('sheets-chevron');
-    var open = panel.style.display !== 'none';
-    panel.style.display = open ? 'none' : 'block';
-    chevron.style.transform = open ? '' : 'rotate(180deg)';
-}
-function onSheetsToggle(checked) {
-    document.getElementById('sheets-options').style.display = checked ? 'block' : 'none';
-}
-function onSheetsModeChange(mode) {
-    document.getElementById('sheets-auto-opts').style.display = mode === 'auto' ? 'block' : 'none';
-    document.getElementById('sheets-connect-opts').style.display = mode === 'connect' ? 'block' : 'none';
-}
-
-// Patch form submit to include sections JSON
-document.getElementById('create-form').addEventListener('submit', function() {
-    prepSectionsJson();
-});
 
 function renderFileList() {
     const container = document.getElementById('file-list');
