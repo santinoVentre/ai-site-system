@@ -2,6 +2,9 @@
 
 Full Unsplash/Pexels/AI gen pipeline lives here. Returns a mapping of
 image_query (or section_id) -> final URL served from the generated-sites assets.
+
+Unsplash: prefers the tracked `links.download` redirect (terms / reliable CDN URLs)
+over scraping `urls.regular` without triggering the download endpoint.
 """
 
 from __future__ import annotations
@@ -21,6 +24,8 @@ from app.config import get_settings
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
+# Helps some CDNs accept programmatic requests; includes deploy base URL for identification.
+_IMG_UA = f"AiSiteSystem/2.0 (+{get_settings().site_base_url})"
 
 GENERATED_ROOT = Path(os.environ.get("GENERATED_SITES_DIR", "/app/data/generated-sites"))
 
@@ -29,7 +34,6 @@ def _asset_dir(project_slug: str) -> Path:
     d = GENERATED_ROOT / project_slug / "assets" / "images"
     d.mkdir(parents=True, exist_ok=True)
     return d
-
 
 def _collect_image_queries(site_copy: dict, project_spec: dict) -> dict[str, str]:
     """Return a dict of image_key -> english query string."""
@@ -53,23 +57,94 @@ def _collect_image_queries(site_copy: dict, project_spec: dict) -> dict[str, str
     return queries
 
 
+def _truncate_response(text: str, max_len: int = 400) -> str:
+    t = (text or "").replace("\n", " ").strip()
+    return t if len(t) <= max_len else t[: max_len - 3] + "..."
+
+
 async def _unsplash_search(client: httpx.AsyncClient, query: str, access_key: str) -> str | None:
-    try:
-        r = await client.get(
+    """Search Unsplash and return a CDN image URL.
+
+    Prefers the official download redirect (`links.download`) when present (tracked
+    per Unsplash guidelines); falls back to ``urls.regular``.
+    """
+    common_headers = {
+        "Authorization": f"Client-ID {access_key}",
+        "User-Agent": _IMG_UA,
+        "Accept-Version": "v1",
+    }
+
+    async def _search(orientation: str | None) -> httpx.Response:
+        params: dict[str, Any] = {"query": query, "per_page": 1}
+        if orientation:
+            params["orientation"] = orientation
+        return await client.get(
             "https://api.unsplash.com/search/photos",
-            params={"query": query, "per_page": 1, "orientation": "landscape"},
-            headers={"Authorization": f"Client-ID {access_key}"},
-            timeout=15,
+            params=params,
+            headers=common_headers,
+            timeout=20,
         )
+
+    try:
+        r = await _search("landscape")
         if r.status_code != 200:
+            logger.warning(
+                "Unsplash search HTTP %s for %r: %s",
+                r.status_code,
+                query,
+                _truncate_response(r.text),
+            )
             return None
         data = r.json()
         results = data.get("results") or []
         if not results:
+            r2 = await _search(None)
+            if r2.status_code != 200:
+                logger.warning(
+                    "Unsplash retry (no orientation) HTTP %s for %r: %s",
+                    r2.status_code,
+                    query,
+                    _truncate_response(r2.text),
+                )
+                return None
+            data = r2.json()
+            results = data.get("results") or []
+        if not results:
+            logger.info("Unsplash: no photos for query %r", query)
             return None
-        return results[0]["urls"]["regular"]
+
+        photo = results[0]
+        links = photo.get("links") or {}
+        dl = links.get("download")
+        if dl:
+            dr = await client.get(
+                dl,
+                headers=common_headers,
+                follow_redirects=False,
+                timeout=20,
+            )
+            if dr.status_code in (301, 302, 303, 307, 308):
+                loc = dr.headers.get("location")
+                if loc:
+                    return loc
+            if dr.status_code == 200:
+                try:
+                    payload = dr.json()
+                    u = payload.get("url")
+                    if isinstance(u, str) and u.startswith("http"):
+                        return u
+                except Exception:
+                    pass
+            logger.info(
+                "Unsplash download step unexpected (%s) for %r — using urls.regular",
+                dr.status_code,
+                query,
+            )
+
+        urls = photo.get("urls") or {}
+        return urls.get("regular") or urls.get("small") or urls.get("thumb")
     except Exception as exc:
-        logger.info("Unsplash search failed for %r: %s", query, exc)
+        logger.warning("Unsplash search failed for %r: %s", query, exc)
         return None
 
 
@@ -128,29 +203,66 @@ async def _replicate_generate(client: httpx.AsyncClient, prompt: str, token: str
 
 
 async def _pexels_search(client: httpx.AsyncClient, query: str, api_key: str) -> str | None:
-    try:
-        r = await client.get(
+    headers = {"Authorization": api_key, "User-Agent": _IMG_UA}
+
+    async def _search(orientation: str | None) -> httpx.Response:
+        params: dict[str, Any] = {"query": query, "per_page": 1}
+        if orientation:
+            params["orientation"] = orientation
+        return await client.get(
             "https://api.pexels.com/v1/search",
-            params={"query": query, "per_page": 1, "orientation": "landscape"},
-            headers={"Authorization": api_key},
-            timeout=15,
+            params=params,
+            headers=headers,
+            timeout=20,
         )
+
+    try:
+        r = await _search("landscape")
         if r.status_code != 200:
+            logger.warning(
+                "Pexels search HTTP %s for %r: %s",
+                r.status_code,
+                query,
+                _truncate_response(r.text),
+            )
             return None
         data = r.json()
         photos = data.get("photos") or []
         if not photos:
+            r2 = await _search(None)
+            if r2.status_code != 200:
+                logger.warning(
+                    "Pexels retry (no orientation) HTTP %s for %r: %s",
+                    r2.status_code,
+                    query,
+                    _truncate_response(r2.text),
+                )
+                return None
+            data = r2.json()
+            photos = data.get("photos") or []
+        if not photos:
+            logger.info("Pexels: no photos for query %r", query)
             return None
-        return photos[0]["src"]["large"] or photos[0]["src"].get("original")
-    except Exception as exc:
-        logger.info("Pexels search failed for %r: %s", query, exc)
-        return None
 
+        src = photos[0].get("src") or {}
+        large = src.get("large") or src.get("large2x") or src.get("original") or src.get("medium")
+        return large if isinstance(large, str) else None
+    except Exception as exc:
+        logger.warning("Pexels search failed for %r: %s", query, exc)
+        return None
 
 async def _download(client: httpx.AsyncClient, url: str, target_dir: Path, key: str) -> str | None:
     try:
-        r = await client.get(url, timeout=30, follow_redirects=True)
+        hdrs = {"User-Agent": _IMG_UA, "Accept": "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"}
+        r = await client.get(url, timeout=35, follow_redirects=True, headers=hdrs)
         if r.status_code != 200:
+            logger.warning(
+                "Image CDN GET %s for key %r url %s: %s",
+                r.status_code,
+                key,
+                url[:120],
+                _truncate_response(r.text),
+            )
             return None
         content = r.content
         ctype = r.headers.get("content-type", "")
@@ -161,9 +273,8 @@ async def _download(client: httpx.AsyncClient, url: str, target_dir: Path, key: 
         (target_dir / fname).write_bytes(content)
         return f"./assets/images/{fname}"
     except Exception as exc:
-        logger.info("Image download failed for %r: %s", url, exc)
+        logger.warning("Image download failed for key %r: %s", key, exc)
         return None
-
 
 async def fetch_images_for_copy(
     project_slug: str,
@@ -180,7 +291,14 @@ async def fetch_images_for_copy(
         return {}
 
     unsplash_key = (settings.unsplash_access_key or "").strip()
+    if unsplash_key.lower().startswith("client-id "):
+        unsplash_key = unsplash_key[10:].strip()
+        logger.info("UNSPLASH_ACCESS_KEY had a 'Client-ID ' prefix — stripped")
     pexels_key = (settings.pexels_api_key or "").strip()
+    # Pexels rejects "Bearer <key>" — only the raw key works (common .env mistake).
+    if pexels_key.lower().startswith("bearer "):
+        pexels_key = pexels_key[7:].strip()
+        logger.info("PEXELS_API_KEY had a 'Bearer ' prefix — stripped; Pexels expects the raw key only")
     replicate_token = (settings.replicate_api_token or "").strip()
     ai_enabled = bool(settings.ai_images_enabled and replicate_token)
 
